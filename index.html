@@ -251,12 +251,452 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 <div class="tab-content" id="plan-tab"><div class="plan-header"><div class="plan-title">Утреннее планирование</div><div class="plan-subtitle">Понедельник — штаб. 20 минут, чтобы разложить неделю.</div></div><div class="plan-step"><div class="plan-step-title">1. Разбери входящие</div><div class="plan-step-desc">Каждую задачу — либо раскидай по дням, либо удали. Цель: входящие = 0.</div><button class="plan-step-btn" onclick="switchTab('inbox-tab')">Входящие →</button></div><div class="plan-step"><div class="plan-step-title">2. Обнови зоны</div><div class="plan-step-desc">Пройдись по зонам. Добавь новое, удали неактуальное.</div><button class="plan-step-btn" onclick="switchTab('today-tab')">Сегодня →</button></div><div class="plan-step"><div class="plan-step-title">3. Раскидай по неделе</div><div class="plan-step-desc">Смотри свободные окна (зелёные). Не больше 2-3 задач на тяжёлые дни.</div><button class="plan-step-btn" onclick="switchTab('week-tab')">Неделя →</button></div><div class="plan-step"><div class="plan-step-title">4. Главная задача дня</div><div class="plan-step-desc">Выбери ОДНУ задачу на сегодня — самую важную. Она будет вверху «Сегодня».</div></div><div class="plan-reminder"><p><strong>Вт</strong> и <strong>Сб</strong> — тяжёлые. Не грузи сверх расписания.</p><p><strong>Пн</strong> и <strong>Пт</strong> — дни для проектов (школа, Келек, волонтёры).</p><p><strong>Чт утро</strong> — 3-4 часа глубокой работы до гимназии.</p><p><strong>Вс</strong> — не трогай. День с женой.</p></div></div>
 <button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
-<div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
+<div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 0:</strong> встроенный бэкап от 22 апреля</p><button class="backup-btn import" style="background:#e8f5ee;color:#1D7A44;border:1px solid #b8d4b8" onclick="loadEmbeddedBackup()">📦 Загрузить встроенный бэкап</button><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
 <div class="modal-overlay cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()"><div class="cal-modal"><div class="cal-modal-head"><span class="cal-modal-title">Календарь</span><button class="cal-close" onclick="closeCalendar()">✕</button></div><div class="cal-scroll"><div class="cal-nav"><button class="cal-nav-btn" onclick="calPrev()">‹</button><span class="cal-month-label" id="cal-month-label"></span><button class="cal-nav-btn" onclick="calNext()">›</button></div><div class="cal-grid" id="cal-grid"></div><div class="cal-editor" id="cal-editor" style="display:none"><div class="cal-editor-title" id="cal-editor-title"></div><textarea id="cal-textarea" placeholder="Заметка..."></textarea><div class="cal-editor-btns"><button class="cal-del-btn" id="cal-del-btn" onclick="calDeleteNote()" style="display:none">Удалить</button><button class="cal-save-btn" onclick="calSaveNote()">Сохранить</button></div></div></div></div></div>
 <div class="toast" id="toast"></div>
 <div id="save-indicator" style="position:fixed;top:14px;right:14px;font-size:11px;color:#27ae60;opacity:0;transition:opacity 0.3s;z-index:60;pointer-events:none;background:#e8f5ee;padding:3px 10px;border-radius:6px;">✓ сохранено</div>
 
 <script>
+var EMBEDDED_BACKUP_VERSION='restore-2026-04-22-full';
+var EMBEDDED_BACKUP={
+  "today": [
+    {
+      "id": "rmo9qr0uc_24",
+      "text": "Диме в курсе заменить молот на актуальный",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_8",
+      "done": false
+    },
+    {
+      "id": "rmo9qr0uc_25",
+      "text": "Скинуть Диме коллабу (исходники)",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_10",
+      "done": false
+    },
+    {
+      "id": "rmo9qr0uc_26",
+      "text": "модели, пара правок. Ответить Вове",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "rmo9qr0uc_6",
+      "done": true
+    },
+    {
+      "id": "rmo9qr0uc_27",
+      "text": "закинуть на диск итоги по курсу от Димургеса",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_12",
+      "done": false
+    },
+    {
+      "id": "rmo9qr0uc_28",
+      "text": "Сценарий фидбека",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_7",
+      "done": false
+    }
+  ],
+  "zones": {
+    "ddt": {
+      "tasks": [
+        {
+          "id": "rmo9qr0ub_1",
+          "text": "Медиаволонтеры Заявы",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0ub_2",
+          "text": "Медкомиссия в мае",
+          "done": false
+        }
+      ]
+    },
+    "gimnaziya": {
+      "tasks": [
+        {
+          "id": "rmo9qr0ub_3",
+          "text": "Снять и отправить научный видос НИСО конкурс",
+          "done": false
+        }
+      ]
+    },
+    "freelance": {
+      "tasks": [
+        {
+          "id": "rmo9qr0ub_4",
+          "text": "Келек 2 видео в работе",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_5",
+          "text": "следить за состоянием Темы",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_6",
+          "text": "модели, пара правок. Ответить Вове",
+          "done": true
+        }
+      ]
+    },
+    "school": {
+      "tasks": [
+        {
+          "id": "rmo9qr0uc_7",
+          "text": "Сценарий фидбека",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_8",
+          "text": "Диме в курсе заменить молот на актуальный",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_9",
+          "text": "анимировать работы детей с прошлого челленджа",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_10",
+          "text": "Скинуть Диме коллабу (исходники)",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_11",
+          "text": "Доброжелатель в лс предложил варик активности общей",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_12",
+          "text": "закинуть на диск итоги по курсу от Димургеса",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_13",
+          "text": "Прогнать уроки блока для марафона. Что уложить в неделю реально для детей?",
+          "done": false
+        }
+      ]
+    },
+    "moto": {
+      "tasks": [
+        {
+          "id": "rmo9qr0uc_14",
+          "text": "Дети говорят Картинг. Сделать",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_15",
+          "text": "Скоро финал конкурса",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_16",
+          "text": "уточнить у НАташи про вожатых. Когда смена? Алена",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_17",
+          "text": "Вожатые могут фоткать и видео снимать. Я монтировать",
+          "done": false
+        }
+      ]
+    },
+    "mediavol": {
+      "tasks": [
+        {
+          "id": "rmo9qr0uc_18",
+          "text": "Вечером проверять как идут дела с видео",
+          "done": false
+        }
+      ]
+    },
+    "personal": {
+      "tasks": [
+        {
+          "id": "rmo9qr0uc_19",
+          "text": "Спорт 2р/нед",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_20",
+          "text": "поиграть в компик",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_21",
+          "text": "Туса 2к17 25.04 23:00",
+          "done": false
+        }
+      ]
+    },
+    "home": {
+      "tasks": [
+        {
+          "id": "rmo9qr0uc_22",
+          "text": "Поменять счетчики. Вода",
+          "done": false
+        },
+        {
+          "id": "rmo9qr0uc_23",
+          "text": "Повторный герметик",
+          "done": false
+        }
+      ]
+    }
+  },
+  "zoneOrder": [
+    "ddt",
+    "gimnaziya",
+    "freelance",
+    "school",
+    "moto",
+    "mediavol",
+    "personal",
+    "home"
+  ],
+  "reminders": [
+    {
+      "id": "rmo9qr0uc_29",
+      "text": "Зарядка",
+      "done": true
+    },
+    {
+      "id": "rmo9qr0uc_30",
+      "text": "Не курить",
+      "done": true
+    },
+    {
+      "id": "rmo9qr0uc_31",
+      "text": "Выпить воду",
+      "done": true
+    },
+    {
+      "id": "rmo9qr0uc_32",
+      "text": "Составить план",
+      "done": true
+    },
+    {
+      "id": "rmo9qr0uc_33",
+      "text": "Витамины утро",
+      "done": true
+    }
+  ],
+  "archive": [
+    {
+      "id": "rmo9qr0uc_43",
+      "text": "приготовить еду",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "status": "done",
+      "archivedAt": "среда, 22 апреля",
+      "archivedDate": "2026-04-22"
+    },
+    {
+      "id": "rmo9qr0uc_44",
+      "text": "оценочный до 11:00",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "status": "done",
+      "archivedAt": "пятница, 17 апреля",
+      "archivedDate": "2026-04-17"
+    },
+    {
+      "id": "rmo9qr0uc_45",
+      "text": "взять документы для заполнения детям. Горит",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "status": "done",
+      "archivedAt": "пятница, 17 апреля",
+      "archivedDate": "2026-04-17"
+    },
+    {
+      "id": "rmo9qr0uc_46",
+      "text": "в ЧТ орг моменты с детьми перед съемкой",
+      "zone": "Медиаволонтёры",
+      "zoneId": "mediavol",
+      "status": "done",
+      "archivedAt": "пятница, 17 апреля",
+      "archivedDate": "2026-04-17"
+    },
+    {
+      "id": "rmo9qr0uc_47",
+      "text": "Сказать про пятницу и выезд. Надбавки",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "status": "done",
+      "archivedAt": "пятница, 17 апреля",
+      "archivedDate": "2026-04-17"
+    },
+    {
+      "id": "rmo9qr0uc_48",
+      "text": "утром написать детям. Уточнить кто где",
+      "zone": "Медиаволонтёры",
+      "zoneId": "mediavol",
+      "status": "done",
+      "archivedAt": "пятница, 17 апреля",
+      "archivedDate": "2026-04-17"
+    },
+    {
+      "id": "rmo9qr0uc_49",
+      "text": "Приказ Островерх",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    },
+    {
+      "id": "rmo9qr0uc_50",
+      "text": "парни ездили на съемку. У кого-то флешка. У кого?",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    },
+    {
+      "id": "rmo9qr0uc_51",
+      "text": "разобраться с парнями",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    },
+    {
+      "id": "rmo9qr0uc_52",
+      "text": "мб задача от Вовы будет сегодня",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    },
+    {
+      "id": "rmo9qr0uc_53",
+      "text": "поддержать Ратмира. Нельзя терять",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    },
+    {
+      "id": "rmo9qr0uc_54",
+      "text": "проверить страховку КВ",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    },
+    {
+      "id": "rmo9qr0uc_55",
+      "text": "напомнить про браслеты",
+      "zone": "Медиаволонтёры",
+      "zoneId": "mediavol",
+      "status": "done",
+      "archivedAt": "четверг, 16 апреля",
+      "archivedDate": "2026-04-16"
+    }
+  ],
+  "date": "2026-04-22",
+  "calendar": {},
+  "inbox": [
+    {
+      "id": "rmo9qr0uc_34",
+      "text": "От НИСО лучший гид. Прогулка по центру города. В чт поискать",
+      "zone": "gimnaziya",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_35",
+      "text": "Засинхронить тамагочи и ежедневник. Типа раб.тетради",
+      "zone": "school",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_36",
+      "text": "17 мая съемка концерта Лисакова 8к",
+      "zone": "freelance",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_37",
+      "text": "Предложить Наташе Алениных вожатых. В кош вожатых по ГПХ можно. Алена шарит. Но смотря когда смена (в июне уже сложно)",
+      "zone": "moto",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_38",
+      "text": "У Алены есть интерес развивать педотряд. Мне нужны онлайн-вожатые для марафона и курса. УТП идеальное, набрать кейсы и оформить",
+      "zone": "school",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_39",
+      "text": "до 30 апреля снять видос и отправить на конкурс НИСО фест медиатворчества",
+      "zone": "gimnaziya",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_40",
+      "text": "сделать расшифровку собрания с детьми. Составить план занятий и концепцию для гимназии",
+      "zone": "gimnaziya",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    },
+    {
+      "id": "rmo9qr0uc_41",
+      "text": "пеирнетн",
+      "zone": "gimnaziya",
+      "created": "2026-04-22",
+      "done": false,
+      "plannedDate": null
+    }
+  ],
+  "weekTasks": {
+    "2026-04-22": [
+      {
+        "id": "rmo9qr0uc_42",
+        "text": "В мае юбилей ЛД",
+        "zone": "gimnaziya",
+        "done": false
+      }
+    ]
+  },
+  "mainTask": {
+    "2026-04-20": {
+      "text": "Оформить ютуб и формы регистрации + ТГ",
+      "zone": "school",
+      "done": false
+    },
+    "2026-04-22": {
+      "text": "Сценарий для фидбека коллабы",
+      "zone": "school",
+      "done": false
+    }
+  }
+};
 var ZONE_DEFS=[{id:'ddt',name:'ДДТ',color:'#1D9E75',init:['Медиаволонтёры','Организовать выезд']},{id:'gimnaziya',name:'Гимназия',color:'#378ADD',init:['Пресс-центр']},{id:'freelance',name:'Фриланс',color:'#E24B4A',init:['🔥 Келек — 3D-модели','Распределить заказы']},{id:'school',name:'Онлайн-школа',color:'#EF9F27',init:['Первая продажа?','Задачи монтажёру']},{id:'moto',name:'Автомотоцентр',color:'#888780',init:['Съёмка / удалёнка']},{id:'mediavol',name:'Медиаволонтёры',color:'#E67E22',init:['Группа на выезд','Студенты-журналисты']},{id:'personal',name:'Личное',color:'#9B59B6',init:['Не курить','Спорт 2р/нед']},{id:'home',name:'Дом/Семья',color:'#16A085',init:['Вс с женой','Родители']}];
 var DEFAULT_REMINDERS=['Зарядка','Не курить','Выпить воду'];
 var DAY_FULL=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
@@ -287,9 +727,16 @@ function load(){
   try{var r=localStorage.getItem('ezhednevnik-v2');if(!r)r=localStorage.getItem('ezhednevnik-v1');if(r){S=JSON.parse(r);patchState(S);loaded=true}}catch(e){}
   // 2) Try URL hash (bookmark with data)
   if(!loaded){try{var h=location.hash.slice(1);if(h.length>10){var decoded=decodeURIComponent(h);S=JSON.parse(decoded);patchState(S);loaded=true;toast('Данные восстановлены из закладки')}}catch(e){}}
-  // 3) Fallback to fresh state
+  // 3) One-shot embedded backup: apply ONCE per BACKUP_VERSION, even if localStorage has data
+  var appliedVer=null;try{appliedVer=localStorage.getItem('ez-embedded-applied')}catch(e){}
+  if(typeof EMBEDDED_BACKUP_VERSION!=='undefined'&&appliedVer!==EMBEDDED_BACKUP_VERSION&&typeof EMBEDDED_BACKUP!=='undefined'&&EMBEDDED_BACKUP&&EMBEDDED_BACKUP.zones){
+    // If there was already data, save it as pre-backup (safety net)
+    try{if(loaded&&S&&(S.today&&S.today.length>0||S.inbox&&S.inbox.length>0||(S.mainTask&&Object.keys(S.mainTask).length>0))){localStorage.setItem('ez-pre-backup-'+Date.now(),JSON.stringify(S))}}catch(e){}
+    try{S=JSON.parse(JSON.stringify(EMBEDDED_BACKUP));patchState(S);loaded=true;localStorage.setItem('ez-embedded-applied',EMBEDDED_BACKUP_VERSION);localStorage.setItem('ezhednevnik-v2',JSON.stringify(S));setTimeout(function(){toast('📦 Восстановлены задачи со скринов')},300)}catch(e){}
+  }
+  // 4) Fallback to fresh state
   if(!loaded) S=initState();
-  // 4) Also try IndexedDB async (will re-render if found and current state is empty)
+  // 5) Also try IndexedDB async (will re-render if found and current state is empty)
   idbLoad(function(data){if(data&&S.today.length===0&&S.inbox.length===0&&Object.keys(S.mainTask).length===0){try{var parsed=typeof data==='string'?JSON.parse(data):data;if(parsed&&parsed.zones&&(parsed.today.length>0||parsed.inbox.length>0||Object.keys(parsed.mainTask||{}).length>0)){S=parsed;patchState(S);save();render();toast('Данные восстановлены из резервного хранилища')}}catch(e){}}});
 }
 
@@ -536,6 +983,12 @@ function importFromText(){
   }catch(err){
     alert('Это не валидный JSON: '+err.message);
   }
+}
+
+function loadEmbeddedBackup(){
+  if(typeof EMBEDDED_BACKUP==='undefined'||!EMBEDDED_BACKUP){alert('Встроенный бэкап не найден в этой версии');return}
+  if(!confirm('Загрузить встроенный бэкап от 22 апреля?\n\nТекущие данные будут ЗАМЕНЕНЫ.'))return;
+  applyImportedState(JSON.parse(JSON.stringify(EMBEDDED_BACKUP)));
 }
 
 // CALENDAR
