@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Ежедневник</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0eeea; color: #1a1a18; min-height: 100vh; padding: 14px; padding-bottom: 70px; }
+.app-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.app-title { font-size: 17px; font-weight: 600; }
+.date-label { font-size: 12px; color: #888; margin-top: 2px; }
+.header-btns { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.hdr-btn { padding: 7px 13px; background: #fff; border: 0.5px solid #ddd; border-radius: 8px; font-size: 13px; color: #666; cursor: pointer; white-space: nowrap; }
+.hdr-btn:hover { background: #e8e6e2; }
+.tabs-bar { display: flex; gap: 0; border-bottom: 1.5px solid #e0deda; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tab-btn { padding: 9px 16px; background: none; border: none; border-bottom: 2.5px solid transparent; font-size: 13px; font-weight: 500; color: #999; cursor: pointer; white-space: nowrap; font-family: inherit; transition: all 0.15s; }
+.tab-btn.active { color: #1a1a18; border-bottom-color: #1a1a18; }
+.tab-btn .tab-badge { display: inline-block; min-width: 16px; padding: 0 5px; height: 16px; line-height: 16px; border-radius: 8px; background: #E24B4A; color: #fff; font-size: 10px; font-weight: 700; text-align: center; margin-left: 5px; vertical-align: middle; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.toast { position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 10px; opacity: 0; transition: opacity 0.3s; z-index: 200; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+.review-banner { background: #fffbf0; border: 0.5px solid #e8c840; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #7a5c00; display: none; }
+.main-task-section { background: #fff; border-radius: 14px; border: 1.5px solid #e8d0d0; padding: 14px; margin-bottom: 14px; }
+.main-task-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #b03020; margin-bottom: 8px; }
+.main-task-display { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.main-task-check { width: 26px; height: 26px; border-radius: 8px; border: 2px solid #b03020; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; background: #fff; }
+.main-task-check.done { background: #e8f5ee; border-color: #27ae60; }
+.main-task-check.done::after { content: ''; display: block; width: 10px; height: 6px; border-left: 2.5px solid #27ae60; border-bottom: 2.5px solid #27ae60; transform: rotate(-45deg) translateY(-1px); }
+.main-task-text { font-size: 15px; font-weight: 600; flex: 1; }
+.main-task-text.done { color: #aaa; text-decoration: line-through; }
+.main-task-zone { font-size: 11px; color: #888; margin-top: 2px; }
+.main-task-form { display: flex; gap: 6px; flex-wrap: wrap; }
+.main-task-form input { flex: 1; min-width: 150px; }
+.main-task-hint { font-size: 12px; color: #bbb; margin-top: 6px; }
+.main-task-edit { font-size: 11px; color: #bbb; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
+.main-task-edit:hover { color: #888; }
+.cal-notif-wrap { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.cal-notif-pill { display: none; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid; white-space: nowrap; position: relative; }
+.cal-notif-pill.show { display: flex; }
+.cal-notif-pill.today-pill { background: #fdf0f0; border-color: #f0c0b8; color: #8b2020; }
+.cal-notif-pill.tomorrow-pill { background: #f0f6fd; border-color: #b8d4f0; color: #1a4a7a; }
+.cal-popover { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 240px; background: #fff; border-radius: 12px; border: 0.5px solid #e0deda; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 300; overflow: hidden; }
+.cal-popover.open { display: block; }
+.cal-popover-head { padding: 10px 12px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; }
+.cal-popover-text { padding: 0 12px 10px; font-size: 13px; color: #1a1a18; line-height: 1.5; }
+.cal-popover-link { padding: 8px 12px; border-top: 0.5px solid #f0eeea; font-size: 12px; color: #378ADD; cursor: pointer; display: block; }
+.top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+@media (max-width: 600px) { .top-row { grid-template-columns: 1fr; } }
+.top-card { background: #fff; border-radius: 14px; border: 0.5px solid #e8e6e2; overflow: hidden; }
+.top-card-header { padding: 9px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid #f0eeea; }
+.today-card { border-color: #e8d0d0; }
+.today-card .top-card-header { background: #fdf5f5; border-bottom-color: #f0d8d8; }
+.top-card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; }
+.today-card .top-card-title { color: #b03020; }
+.remind-card .top-card-title { color: #888; }
+.today-count { margin-left: auto; font-size: 12px; color: #b03020; opacity: 0.7; }
+.top-card-body { padding: 4px 14px 10px; }
+.top-empty { padding: 12px 0; font-size: 13px; color: #bbb; text-align: center; }
+.today-task { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 0.5px solid #f5f2ee; }
+.today-task:last-child { border-bottom: none; }
+.check-box { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid #ccc; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; background: #fff; }
+.check-box.done { background: #e8f5ee; border-color: #27ae60; }
+.check-box.done::after { content: ''; display: block; width: 9px; height: 5.5px; border-left: 2px solid #27ae60; border-bottom: 2px solid #27ae60; transform: rotate(-45deg) translateY(-1px); }
+.today-task-text { flex: 1; font-size: 13px; line-height: 1.4; }
+.today-task-text.done { color: #aaa; text-decoration: line-through; }
+.zone-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f0eeea; color: #888; flex-shrink: 0; white-space: nowrap; }
+.t-remove { width: 30px; height: 30px; border: none; background: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #ddd; flex-shrink: 0; }
+.t-remove:hover { background: #fef0f0; color: #c0392b; }
+.reminder-item { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 0.5px solid #f5f4f0; }
+.reminder-item:last-child { border-bottom: none; }
+.r-check { width: 22px; height: 22px; border-radius: 11px; border: 1.5px solid #ddd; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; background: #fff; }
+.r-check.done { background: #e8f5ee; border-color: #27ae60; }
+.r-check.done::after { content: ''; display: block; width: 8px; height: 5px; border-left: 1.5px solid #27ae60; border-bottom: 1.5px solid #27ae60; transform: rotate(-45deg) translateY(-1px); }
+.reminder-text { flex: 1; font-size: 13px; }
+.reminder-text.done { color: #bbb; text-decoration: line-through; }
+.r-del { width: 30px; height: 30px; border: none; background: none; border-radius: 6px; cursor: pointer; font-size: 13px; color: #ddd; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.r-del:hover { background: #fef0f0; color: #c0392b; }
+.add-remind-row { display: flex; gap: 6px; padding: 6px 14px 10px; border-top: 0.5px solid #f5f4f0; }
+.zones-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 720px) { .zones-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .zones-grid { grid-template-columns: 1fr; } }
+.zone-card { background: #fff; border-radius: 14px; border: 0.5px solid #e8e6e2; overflow: hidden; }
+.zone-head { padding: 8px 12px; border-bottom: 0.5px solid #f0eeea; display: flex; align-items: center; gap: 7px; }
+.zone-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.zone-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; flex: 1; }
+.zone-cnt { font-size: 11px; color: #ccc; }
+.zone-tasks { padding: 4px 12px 4px; min-height: 36px; }
+.zone-empty { font-size: 12px; color: #ccc; padding: 10px 0; text-align: center; }
+.zone-task { display: flex; align-items: center; gap: 7px; padding: 7px 0; border-bottom: 0.5px solid #f5f4f0; }
+.zone-task:last-child { border-bottom: none; }
+.small-check { width: 17px; height: 17px; border-radius: 4px; border: 1.5px solid #ddd; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; background: #fff; }
+.small-check.done { background: #e8f5ee; border-color: #27ae60; }
+.small-check.done::after { content: ''; display: block; width: 7px; height: 4.5px; border-left: 1.5px solid #27ae60; border-bottom: 1.5px solid #27ae60; transform: rotate(-45deg) translateY(-1px); }
+.zone-task-text { flex: 1; font-size: 13px; line-height: 1.35; }
+.zone-task-text.done { color: #bbb; text-decoration: line-through; }
+.z-btns { display: flex; gap: 2px; flex-shrink: 0; }
+.z-btn { width: 30px; height: 30px; border: none; background: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #ccc; transition: all 0.1s; }
+.z-btn:hover { background: #f0eeea; color: #555; }
+.z-btn.add-t { color: #378ADD; font-weight: 700; }
+.z-btn.add-t:hover { background: #eaf2fb; }
+.z-btn.in-t { color: #27ae60; }
+.z-btn.cancel-t:hover { background: #fff8f0; color: #e67e22; }
+.z-btn.del-t:hover { background: #fef0f0; color: #c0392b; }
+.z-btn:disabled { opacity: 0.2; cursor: default; background: none !important; }
+.add-row { display: flex; gap: 6px; padding: 4px 12px 10px; }
+.add-input { flex: 1; font-size: 13px; border: 0.5px solid #e0deda; border-radius: 7px; padding: 7px 10px; background: #fafaf8; color: #1a1a18; outline: none; font-family: inherit; }
+.add-input:focus { border-color: #aaa; background: #fff; }
+.add-input::placeholder { color: #bbb; }
+.add-btn { width: 34px; height: 34px; background: #1a1a18; color: #fff; border: none; border-radius: 7px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.add-btn:hover { background: #333; }
+.drag-handle { cursor: grab; color: #ccc; font-size: 14px; padding: 0 4px; flex-shrink: 0; user-select: none; touch-action: none; }
+.drag-handle:hover { color: #999; }
+.sortable-ghost { opacity: 0.4; background: #e8f0fe !important; }
+.sortable-chosen { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.hint { text-align: center; font-size: 12px; color: #bbb; margin-top: 12px; padding-bottom: 10px; }
+
+/* WEEK */
+.week-day-card { background: #fff; border-radius: 14px; border: 0.5px solid #e8e6e2; margin-bottom: 10px; overflow: hidden; }
+.week-day-card.is-today { border-color: #e8d0d0; border-width: 1.5px; }
+.week-day-card.is-weekend { opacity: 0.55; }
+.week-day-head { padding: 9px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid #f0eeea; }
+.week-day-card.is-today .week-day-head { background: #fdf5f5; }
+.week-day-name { font-size: 13px; font-weight: 700; flex: 1; }
+.week-day-date { font-size: 12px; color: #aaa; font-weight: 400; margin-left: 6px; }
+.week-tag { font-size: 10px; padding: 2px 8px; border-radius: 5px; font-weight: 500; }
+.week-tag.rest { background: #f0e6ff; color: #7b4ab0; }
+.week-tag.plan { background: #fffbee; color: #8a6d00; }
+.week-tag.heavy { background: #fef0f0; color: #b03020; }
+.week-day-body { padding: 8px 14px 10px; }
+.week-fixed { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.week-fixed-tag { font-size: 11px; padding: 3px 8px; border-radius: 5px; border: 0.5px solid; }
+.week-free { margin-bottom: 8px; }
+.week-free-tag { display: inline-block; font-size: 11px; color: #1D9E75; background: #e8f5ee; padding: 3px 8px; border-radius: 5px; margin-right: 4px; margin-bottom: 3px; }
+.week-task-item { display: flex; align-items: center; gap: 7px; padding: 5px 0; border-bottom: 0.5px solid #f5f4f0; font-size: 13px; }
+.week-task-item:last-child { border-bottom: none; }
+.week-task-text { flex: 1; font-size: 13px; }
+.week-task-text.done { color: #bbb; text-decoration: line-through; }
+.week-task-zone { font-size: 10px; color: #aaa; padding: 1px 6px; background: #f5f4f0; border-radius: 3px; }
+.week-add-row { display: flex; gap: 6px; margin-top: 4px; }
+.week-add-row input { flex: 1; }
+.week-add-row select { max-width: 120px; font-size: 12px; border: 0.5px solid #e0deda; border-radius: 7px; padding: 6px 8px; background: #fafaf8; font-family: inherit; outline: none; }
+.week-main-task { padding: 6px 10px; background: #fdf5f5; border-radius: 8px; border-left: 3px solid #b03020; font-size: 13px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+
+/* INBOX */
+.inbox-section { margin-bottom: 20px; }
+.inbox-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 10px; }
+.inbox-hint { font-size: 13px; color: #bbb; margin-bottom: 10px; line-height: 1.5; }
+.inbox-form { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.inbox-form input { flex: 1; min-width: 180px; }
+.inbox-item { background: #fff; border-radius: 10px; border: 0.5px solid #e8e6e2; padding: 10px 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inbox-item.planned { background: #f7f5f0; opacity: 0.75; border-style: dashed; }
+.inbox-item.done { opacity: 0.5; }
+.inbox-item .small-check { flex-shrink: 0; }
+.inbox-item-text { flex: 1; font-size: 13px; min-width: 120px; }
+.inbox-item-text.done { text-decoration: line-through; color: #bbb; }
+.inbox-item-zone { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+.inbox-planned-tag { font-size: 11px; padding: 3px 8px; border-radius: 5px; background: #eef4ff; color: #3a5c8a; font-weight: 500; white-space: nowrap; }
+.inbox-actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.inbox-actions select { font-size: 11px; border: 0.5px solid #e0deda; border-radius: 5px; padding: 4px 6px; background: #fafaf8; font-family: inherit; }
+.inbox-empty { font-size: 13px; color: #1D9E75; text-align: center; padding: 20px; font-style: italic; }
+.inbox-subhead { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #bbb; margin: 14px 0 8px; padding-top: 10px; border-top: 0.5px dashed #e0deda; }
+.inbox-subhead:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.week-task-item.from-inbox { background: #fafaf7; border-left: 2px solid #3a5c8a; }
+.week-task-inbox-icon { font-size: 10px; color: #3a5c8a; opacity: 0.7; margin-right: 2px; }
+
+/* PLANNING */
+.plan-header { background: #fffbee; border: 1px solid #e8c840; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+.plan-title { font-size: 16px; font-weight: 700; color: #7a5c00; margin-bottom: 6px; }
+.plan-subtitle { font-size: 13px; color: #a08a30; line-height: 1.5; }
+.plan-step { background: #fff; border-radius: 14px; border: 0.5px solid #e8e6e2; padding: 14px; margin-bottom: 10px; }
+.plan-step-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.plan-step-desc { font-size: 13px; color: #888; line-height: 1.5; }
+.plan-step-btn { display: inline-block; margin-top: 8px; padding: 7px 14px; background: #f0eeea; border: 0.5px solid #ddd; border-radius: 8px; font-size: 12px; color: #555; cursor: pointer; font-family: inherit; }
+.plan-step-btn:hover { background: #e0deda; }
+.plan-reminder { background: #fff; border-radius: 14px; border: 0.5px solid #e8e6e2; padding: 14px; margin-top: 16px; }
+.plan-reminder p { font-size: 13px; color: #888; line-height: 1.7; margin-bottom: 6px; }
+.plan-reminder p:last-child { margin-bottom: 0; }
+.plan-reminder strong { color: #555; }
+
+/* MODALS */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; }
+.modal-overlay.open { display: flex; }
+.arch-overlay { align-items: flex-end; justify-content: center; }
+.arch-modal { background: #fff; border-radius: 18px 18px 0 0; width: 100%; max-width: 960px; max-height: 78vh; display: flex; flex-direction: column; overflow: hidden; }
+.arch-modal-head { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 0.5px solid #f0eeea; }
+.arch-modal-title { font-size: 14px; font-weight: 600; flex: 1; }
+.arch-modal-count { font-size: 12px; color: #aaa; }
+.arch-close { width: 30px; height: 30px; border-radius: 50%; background: #f0eeea; border: none; cursor: pointer; font-size: 14px; color: #666; display: flex; align-items: center; justify-content: center; }
+.arch-scroll { overflow-y: auto; flex: 1; }
+.arch-date-label { font-size: 11px; font-weight: 500; color: #bbb; padding: 10px 16px 4px; }
+.arch-task { display: flex; align-items: center; gap: 9px; padding: 9px 16px; border-bottom: 0.5px solid #f8f7f5; }
+.arch-done-icon { width: 16px; height: 16px; border-radius: 4px; background: #e8f5ee; border: 1.5px solid #27ae60; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.arch-done-icon::after { content: ''; display: block; width: 7px; height: 4px; border-left: 1.5px solid #27ae60; border-bottom: 1.5px solid #27ae60; transform: rotate(-45deg) translateY(-1px); }
+.arch-cancel-icon { width: 16px; height: 16px; border-radius: 4px; background: #fff4e8; border: 1.5px solid #e67e22; flex-shrink: 0; font-size: 9px; color: #e67e22; display: flex; align-items: center; justify-content: center; }
+.arch-task-text { flex: 1; font-size: 13px; color: #aaa; text-decoration: line-through; }
+.arch-zone-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #f5f4f0; color: #bbb; }
+.arch-status { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+.arch-status.done { background: #eaf5ee; color: #27ae60; }
+.arch-status.cancelled { background: #fff4e8; color: #e67e22; }
+.restore-btn { font-size: 11px; padding: 4px 10px; border-radius: 5px; border: 0.5px solid #ddd; background: #fff; color: #888; cursor: pointer; }
+.arch-empty { padding: 28px 16px; font-size: 13px; color: #bbb; text-align: center; }
+.backup-overlay { align-items: center; justify-content: center; padding: 20px; }
+.backup-modal { background: #fff; border-radius: 18px; width: 100%; max-width: 420px; overflow: hidden; }
+.backup-head { padding: 16px 18px; border-bottom: 0.5px solid #f0eeea; display: flex; align-items: center; }
+.backup-title { font-size: 15px; font-weight: 600; flex: 1; }
+.backup-close { width: 30px; height: 30px; border-radius: 50%; background: #f0eeea; border: none; cursor: pointer; font-size: 14px; color: #666; display: flex; align-items: center; justify-content: center; }
+.backup-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.backup-desc { font-size: 13px; color: #888; line-height: 1.5; }
+.backup-btn { width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; gap: 10px; }
+.backup-btn.export { background: #1a1a18; color: #fff; }
+.backup-btn.import { background: #f0eeea; color: #1a1a18; }
+.backup-divider { border: none; border-top: 0.5px solid #f0eeea; margin: 4px 0; }
+.backup-info { font-size: 11px; color: #bbb; text-align: center; }
+.cal-overlay { align-items: flex-end; justify-content: center; }
+.cal-modal { background: #fff; border-radius: 18px 18px 0 0; width: 100%; max-width: 960px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.cal-modal-head { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 0.5px solid #f0eeea; }
+.cal-modal-title { font-size: 14px; font-weight: 600; flex: 1; }
+.cal-close { width: 30px; height: 30px; border-radius: 50%; background: #f0eeea; border: none; cursor: pointer; font-size: 14px; color: #666; }
+.cal-scroll { overflow-y: auto; flex: 1; padding: 14px 16px 20px; }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-month-label { font-size: 15px; font-weight: 600; }
+.cal-nav-btn { width: 34px; height: 34px; border-radius: 8px; background: #f0eeea; border: none; cursor: pointer; font-size: 16px; color: #555; display: flex; align-items: center; justify-content: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; padding: 4px 0 8px; }
+.cal-day { min-height: 52px; border-radius: 10px; padding: 6px 7px; cursor: pointer; background: #fafaf8; border: 0.5px solid #f0eeea; position: relative; display: flex; flex-direction: column; gap: 3px; }
+.cal-day:hover { background: #f0eeea; }
+.cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
+.cal-day.today { background: #fdf5f5; border-color: #f0c8c0; }
+.cal-day.has-note { border-color: #378ADD; background: #f0f6fd; }
+.cal-day-num { font-size: 13px; font-weight: 500; color: #555; }
+.cal-day.today .cal-day-num { color: #b03020; font-weight: 700; }
+.cal-day-note { font-size: 11px; color: #888; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cal-editor { margin-top: 16px; background: #f8f7f5; border-radius: 12px; padding: 14px; }
+.cal-editor-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #555; }
+.cal-editor textarea { width: 100%; font-size: 13px; font-family: inherit; border: 0.5px solid #e0deda; border-radius: 8px; padding: 9px 11px; background: #fff; color: #1a1a18; outline: none; resize: none; min-height: 72px; }
+.cal-editor-btns { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+.cal-save-btn { padding: 7px 16px; background: #1a1a18; color: #fff; border: none; border-radius: 7px; font-size: 13px; cursor: pointer; }
+.cal-del-btn { padding: 7px 14px; background: none; color: #c0392b; border: 0.5px solid #f0c8c0; border-radius: 7px; font-size: 13px; cursor: pointer; }
+.float-inbox-btn { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 10px 24px; background: #1a1a18; color: #fff; border: none; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; z-index: 50; box-shadow: 0 4px 16px rgba(0,0,0,0.2); font-family: inherit; }
+.float-inbox-btn:hover { background: #333; }
+</style>
+</head>
+<body>
+<div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><div style="position:relative;display:flex;align-items:center;gap:6px;"><button class="hdr-btn" onclick="openCalendar()">📅</button><div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()">🔴 Сегодня<div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()">🔔 Завтра<div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div></div><button class="hdr-btn" onclick="openArchive()">📦</button><button class="hdr-btn" onclick="openBackup()">💾</button><button class="hdr-btn" onclick="newDay()">↺ Новый день</button></div></div>
+<div class="tabs-bar"><button class="tab-btn active" onclick="switchTab('today-tab')">Сегодня</button><button class="tab-btn" onclick="switchTab('week-tab')">Неделя</button><button class="tab-btn" onclick="switchTab('inbox-tab')" id="inbox-tab-btn">Входящие</button><button class="tab-btn" onclick="switchTab('plan-tab')">📋 Планирование</button></div>
+<div class="tab-content active" id="today-tab"><div id="review-banner" class="review-banner">📋 Воскресенье — обнови зоны и спланируй неделю.</div><div class="main-task-section" id="main-task-section"></div><div class="top-row"><div class="top-card today-card"><div class="top-card-header"><span class="top-card-title">Задачи на сегодня</span><span class="today-count" id="today-count"></span></div><div class="top-card-body" id="today-tasks"></div></div><div class="top-card remind-card"><div class="top-card-header"><span class="top-card-title">Ежедневные</span></div><div class="top-card-body" id="remind-tasks"></div><div class="add-remind-row"><input class="add-input" id="inp-remind" placeholder="напоминание..." onkeydown="if(event.key==='Enter')addReminder()"><button class="add-btn" onclick="addReminder()">+</button></div></div></div><div class="zones-grid" id="zones-grid"></div><div class="hint">→ в «Сегодня» · ⊘ отменить · ✕ удалить</div></div>
+<div class="tab-content" id="week-tab"><div id="week-container"></div></div>
+<div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Запиши всё что прилетело. Потом раскинь по дням — задача появится в неделе и останется здесь с меткой 📅. ✕ в неделе = снять с дня (не удалит). ✕ в инбоксе = удалить совсем.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
+<div class="tab-content" id="plan-tab"><div class="plan-header"><div class="plan-title">Утреннее планирование</div><div class="plan-subtitle">Понедельник — штаб. 20 минут, чтобы разложить неделю.</div></div><div class="plan-step"><div class="plan-step-title">1. Разбери входящие</div><div class="plan-step-desc">Каждую задачу — либо раскидай по дням, либо удали. Цель: входящие = 0.</div><button class="plan-step-btn" onclick="switchTab('inbox-tab')">Входящие →</button></div><div class="plan-step"><div class="plan-step-title">2. Обнови зоны</div><div class="plan-step-desc">Пройдись по зонам. Добавь новое, удали неактуальное.</div><button class="plan-step-btn" onclick="switchTab('today-tab')">Сегодня →</button></div><div class="plan-step"><div class="plan-step-title">3. Раскидай по неделе</div><div class="plan-step-desc">Смотри свободные окна (зелёные). Не больше 2-3 задач на тяжёлые дни.</div><button class="plan-step-btn" onclick="switchTab('week-tab')">Неделя →</button></div><div class="plan-step"><div class="plan-step-title">4. Главная задача дня</div><div class="plan-step-desc">Выбери ОДНУ задачу на сегодня — самую важную. Она будет вверху «Сегодня».</div></div><div class="plan-reminder"><p><strong>Вт</strong> и <strong>Сб</strong> — тяжёлые. Не грузи сверх расписания.</p><p><strong>Пн</strong> и <strong>Пт</strong> — дни для проектов (школа, Келек, волонтёры).</p><p><strong>Чт утро</strong> — 3-4 часа глубокой работы до гимназии.</p><p><strong>Вс</strong> — не трогай. День с женой.</p></div></div>
+<button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
+<div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
+<div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
+<div class="modal-overlay cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()"><div class="cal-modal"><div class="cal-modal-head"><span class="cal-modal-title">Календарь</span><button class="cal-close" onclick="closeCalendar()">✕</button></div><div class="cal-scroll"><div class="cal-nav"><button class="cal-nav-btn" onclick="calPrev()">‹</button><span class="cal-month-label" id="cal-month-label"></span><button class="cal-nav-btn" onclick="calNext()">›</button></div><div class="cal-grid" id="cal-grid"></div><div class="cal-editor" id="cal-editor" style="display:none"><div class="cal-editor-title" id="cal-editor-title"></div><textarea id="cal-textarea" placeholder="Заметка..."></textarea><div class="cal-editor-btns"><button class="cal-del-btn" id="cal-del-btn" onclick="calDeleteNote()" style="display:none">Удалить</button><button class="cal-save-btn" onclick="calSaveNote()">Сохранить</button></div></div></div></div></div>
+<div class="toast" id="toast"></div>
+<div id="save-indicator" style="position:fixed;top:14px;right:14px;font-size:11px;color:#27ae60;opacity:0;transition:opacity 0.3s;z-index:60;pointer-events:none;background:#e8f5ee;padding:3px 10px;border-radius:6px;">✓ сохранено</div>
+
+<script>
+var ZONE_DEFS=[{id:'ddt',name:'ДДТ',color:'#1D9E75',init:['Медиаволонтёры','Организовать выезд']},{id:'gimnaziya',name:'Гимназия',color:'#378ADD',init:['Пресс-центр']},{id:'freelance',name:'Фриланс',color:'#E24B4A',init:['🔥 Келек — 3D-модели','Распределить заказы']},{id:'school',name:'Онлайн-школа',color:'#EF9F27',init:['Первая продажа?','Задачи монтажёру']},{id:'moto',name:'Автомотоцентр',color:'#888780',init:['Съёмка / удалёнка']},{id:'mediavol',name:'Медиаволонтёры',color:'#E67E22',init:['Группа на выезд','Студенты-журналисты']},{id:'personal',name:'Личное',color:'#9B59B6',init:['Не курить','Спорт 2р/нед']},{id:'home',name:'Дом/Семья',color:'#16A085',init:['Вс с женой','Родители']}];
+var DEFAULT_REMINDERS=['Зарядка','Не курить','Выпить воду'];
+var DAY_FULL=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+var DAY_SHORT=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+var MONTHS_RU=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+var MONTHS_RU2=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+var FIXED={2:[{t:'10:00–11:30',l:'3D гр.1',c:'#1D9E75'},{t:'15:00–16:30',l:'3D гр.2',c:'#1D9E75'},{t:'16:30–17:40',l:'3D гр.3',c:'#1D9E75'},{t:'18:20–19:30',l:'3D гимн.',c:'#378ADD'}],3:[{t:'09:30–11:00',l:'3D гр.1',c:'#1D9E75'},{t:'11:30–14:00',l:'Планёрка?',c:'#1D9E75',o:1},{t:'15:00–16:30',l:'3D гр.2',c:'#1D9E75'},{t:'16:30–18:00',l:'3D гр.3',c:'#1D9E75'}],4:[{t:'15:00–19:00',l:'Видео гимн.',c:'#378ADD'}],6:[{t:'10:50–12:20',l:'3D гимн.',c:'#378ADD'},{t:'14:00–15:30',l:'3D ДДТ',c:'#1D9E75'},{t:'16:30–18:30',l:'Видео ДДТ',c:'#E24B4A'}]};
+var FREE_W={1:['09:00–18:00 свободный день'],2:['11:30–15:00 окно'],3:['после 18:00 вечер'],4:['09:00–13:00 утро до гимн.'],5:['09:00–18:00 свободный день']};
+var DAY_TAGS={0:{t:'День с женой',c:'rest'},1:{t:'📋 Планирование',c:'plan'},2:{t:'Тяжёлый',c:'heavy'},6:{t:'Тяжёлый',c:'heavy'}};
+var S,toastTimer=null;
+function uid(){return Math.random().toString(36).slice(2,9)}
+function todayStr(){return new Date().toISOString().slice(0,10)}
+function todayLabel(){var d=new Date();return DAY_FULL[d.getDay()]+', '+d.getDate()+' '+MONTHS_RU2[d.getMonth()]}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(m){var e=document.getElementById('toast');e.textContent=m;e.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){e.classList.remove('show')},2200)}
+function initState(){var z={};ZONE_DEFS.forEach(function(d){z[d.id]={tasks:d.init.map(function(t){return{id:uid(),text:t,done:false}})}});return{today:[],zones:z,zoneOrder:ZONE_DEFS.map(function(d){return d.id}),reminders:DEFAULT_REMINDERS.map(function(t){return{id:uid(),text:t,done:false}}),archive:[],date:todayStr(),calendar:{},inbox:[],weekTasks:{},mainTask:{}}}
+// === PERSISTENCE: localStorage + IndexedDB + URL hash ===
+var DB_NAME='ezhednevnik-db',DB_STORE='state',DB_KEY='main';
+function idbOpen(cb){try{var req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=function(e){e.target.result.createObjectStore(DB_STORE)};req.onsuccess=function(e){cb(e.target.result)};req.onerror=function(){cb(null)}}catch(e){cb(null)}}
+function idbSave(data){idbOpen(function(db){if(!db)return;try{var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(data,DB_KEY)}catch(e){}})}
+function idbLoad(cb){idbOpen(function(db){if(!db){cb(null);return}try{var tx=db.transaction(DB_STORE,'readonly');var req=tx.objectStore(DB_STORE).get(DB_KEY);req.onsuccess=function(){cb(req.result||null)};req.onerror=function(){cb(null)}}catch(e){cb(null)}})}
+
+function patchState(s){if(!s)return;if(!s.archive)s.archive=[];if(!s.reminders)s.reminders=DEFAULT_REMINDERS.map(function(t){return{id:uid(),text:t,done:false}});if(!s.zoneOrder)s.zoneOrder=ZONE_DEFS.map(function(d){return d.id});if(!s.calendar)s.calendar={};if(!s.inbox)s.inbox=[];if(!s.weekTasks)s.weekTasks={};if(!s.mainTask)s.mainTask={};s.inbox.forEach(function(x){if(typeof x.plannedDate==='undefined')x.plannedDate=null});ZONE_DEFS.forEach(function(d){if(!s.zones[d.id])s.zones[d.id]={tasks:[]};if(s.zoneOrder.indexOf(d.id)===-1)s.zoneOrder.push(d.id)})}
+
+function load(){
+  var loaded=false;
+  // 1) Try localStorage
+  try{var r=localStorage.getItem('ezhednevnik-v2');if(!r)r=localStorage.getItem('ezhednevnik-v1');if(r){S=JSON.parse(r);patchState(S);loaded=true}}catch(e){}
+  // 2) Try URL hash (bookmark with data)
+  if(!loaded){try{var h=location.hash.slice(1);if(h.length>10){var decoded=decodeURIComponent(h);S=JSON.parse(decoded);patchState(S);loaded=true;toast('Данные восстановлены из закладки')}}catch(e){}}
+  // 3) Fallback to fresh state
+  if(!loaded) S=initState();
+  // 4) Also try IndexedDB async (will re-render if found and current state is empty)
+  idbLoad(function(data){if(data&&S.today.length===0&&S.inbox.length===0&&Object.keys(S.mainTask).length===0){try{var parsed=typeof data==='string'?JSON.parse(data):data;if(parsed&&parsed.zones&&(parsed.today.length>0||parsed.inbox.length>0||Object.keys(parsed.mainTask||{}).length>0)){S=parsed;patchState(S);save();render();toast('Данные восстановлены из резервного хранилища')}}catch(e){}}});
+}
+
+var _saveTimeout=null;
+function save(){
+  // localStorage
+  try{localStorage.setItem('ezhednevnik-v2',JSON.stringify(S))}catch(e){}
+  // IndexedDB (async, debounced)
+  if(_saveTimeout)clearTimeout(_saveTimeout);
+  _saveTimeout=setTimeout(function(){idbSave(JSON.stringify(S))},1000);
+  // Update URL hash for bookmarking (debounced to avoid lag)
+  _updateHashTimer&&clearTimeout(_updateHashTimer);
+  _updateHashTimer=setTimeout(updateUrlHash,3000);
+  // Visual save indicator
+  showSaveIndicator();
+}
+var _updateHashTimer=null;
+function updateUrlHash(){try{var json=JSON.stringify(S);if(json.length<50000){history.replaceState(null,'','#'+encodeURIComponent(json))}}catch(e){}}
+
+// Save indicator
+function showSaveIndicator(){var el=document.getElementById('save-indicator');if(!el)return;el.style.opacity='1';setTimeout(function(){el.style.opacity='0'},1500)}
+
+// Prevent accidental tab close — максимально агрессивно
+var _hasChanges=true; // включено сразу, не ждём первого save
+var _origSave=save;
+save=function(){_hasChanges=true;_origSave()};
+function _warnClose(e){if(!_hasChanges)return;var msg='Данные не улетят, но если ты этого не хочешь — останься.';e.preventDefault();e.returnValue=msg;return msg}
+window.onbeforeunload=_warnClose;
+window.addEventListener('beforeunload',_warnClose);
+window.addEventListener('pagehide',function(){try{localStorage.setItem('ezhednevnik-v2',JSON.stringify(S))}catch(e){}});
+
+// Weekly backup reminder (once per 7 days)
+;(function(){
+  var lastBackup=localStorage.getItem('ez-last-backup');
+  var now=Date.now();
+  var WEEK=7*24*60*60*1000;
+  if(lastBackup&&(now-parseInt(lastBackup))>=WEEK){
+    setTimeout(function(){
+      toast('📦 Прошла неделя — сделай бэкап (💾)');
+      // Show again in 2 hours if ignored
+      setTimeout(function(){
+        var lb=localStorage.getItem('ez-last-backup');
+        if(lb&&(Date.now()-parseInt(lb))>=WEEK) toast('⚠️ Бэкап не делался больше недели!');
+      },7200000);
+    },3000);
+  }
+  if(!lastBackup) localStorage.setItem('ez-last-backup',String(now));
+})();
+
+// Auto-cleanup archive: remove entries older than 61 days
+function cleanupArchive(){
+  if(!S.archive||!S.archive.length)return;
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-61);
+  var cutoffStr=cutoff.toISOString().slice(0,10);
+  var before=S.archive.length;
+  S.archive=S.archive.filter(function(a){
+    if(!a.archivedDate)return true;
+    return a.archivedDate>=cutoffStr;
+  });
+  var removed=before-S.archive.length;
+  if(removed>0){save();toast('🧹 Архив: удалено '+removed+' старых записей (>61 дн.)');}
+}
+
+function switchTab(id){document.querySelectorAll('.tab-content').forEach(function(e){e.classList.remove('active')});document.querySelectorAll('.tab-btn').forEach(function(e){e.classList.remove('active')});document.getElementById(id).classList.add('active');var idx=['today-tab','week-tab','inbox-tab','plan-tab'].indexOf(id);var btns=document.querySelectorAll('.tab-btn');if(idx>=0&&btns[idx])btns[idx].classList.add('active');if(id==='week-tab')renderWeek();if(id==='inbox-tab')renderInbox()}
+
+// MAIN TASK
+function renderMainTask(){var ds=todayStr(),mt=S.mainTask[ds],el=document.getElementById('main-task-section');var h='<div class="main-task-label">⭐ Главная задача дня</div>';if(mt){var zn=null;ZONE_DEFS.forEach(function(z){if(z.id===mt.zone)zn=z});h+='<div class="main-task-display" onclick="toggleMainTask()"><div class="main-task-check'+(mt.done?' done':'')+'"></div><div><div class="main-task-text'+(mt.done?' done':'')+'">'+esc(mt.text)+'</div>'+(zn?'<div class="main-task-zone">'+esc(zn.name)+'</div>':'')+'</div><span class="main-task-edit" onclick="event.stopPropagation();editMainTask()">✎</span></div>'}else{h+='<div class="main-task-form"><input class="add-input" id="main-task-input" placeholder="Одна задача, которую ТОЧНО закроешь" onkeydown="if(event.key===\'Enter\')saveMainTask()"><select class="add-input" id="main-task-zone" style="flex:0 0 auto;min-width:100px">';ZONE_DEFS.forEach(function(z){h+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});h+='</select><button class="add-btn" onclick="saveMainTask()">✓</button></div><div class="main-task-hint">Одна самая важная задача на сегодня</div>'}el.innerHTML=h}
+function saveMainTask(){var t=document.getElementById('main-task-input').value.trim();if(!t)return;S.mainTask[todayStr()]={text:t,zone:document.getElementById('main-task-zone').value,done:false};save();renderMainTask()}
+function toggleMainTask(){var m=S.mainTask[todayStr()];if(m){m.done=!m.done;save();renderMainTask()}}
+function editMainTask(){delete S.mainTask[todayStr()];save();renderMainTask()}
+
+// RENDER
+function render(){document.getElementById('date-label').textContent=todayLabel();if(new Date().getDay()===0)document.getElementById('review-banner').style.display='block';renderMainTask();
+var h1='',ac=S.today.filter(function(t){return!t.done}).length;document.getElementById('today-count').textContent=ac?ac+' задач':'';
+if(!S.today.length)h1='<div class="top-empty">Перенеси задачи из зон →</div>';
+else S.today.forEach(function(t){h1+='<div class="today-task" data-id="'+t.id+'"><span class="drag-handle">☰</span><div class="check-box'+(t.done?' done':'')+'" onclick="toggleToday(\''+t.id+'\')"></div><div class="today-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</div><span class="zone-badge">'+esc(t.zone)+'</span><button class="t-remove" onclick="removeToday(\''+t.id+'\')">✕</button></div>'});
+document.getElementById('today-tasks').innerHTML=h1;
+var h2='';S.reminders.forEach(function(r){h2+='<div class="reminder-item"><div class="r-check'+(r.done?' done':'')+'" onclick="toggleReminder(\''+r.id+'\')"></div><div class="reminder-text'+(r.done?' done':'')+'">'+esc(r.text)+'</div><button class="r-del" onclick="deleteReminder(\''+r.id+'\')">✕</button></div>'});
+document.getElementById('remind-tasks').innerHTML=h2||'<div class="top-empty">Нет</div>';
+var h3='';(S.zoneOrder||[]).forEach(function(zi){var zn=null;ZONE_DEFS.forEach(function(z){if(z.id===zi)zn=z});if(!zn)return;var ts=S.zones[zi].tasks,cnt=ts.filter(function(t){return!t.done}).length,th='';if(!ts.length)th='<div class="zone-empty">пусто</div>';else ts.forEach(function(t){var isIn=inToday(t.id);th+='<div class="zone-task" data-id="'+t.id+'"><span class="drag-handle">☰</span><div class="small-check'+(t.done?' done':'')+'" onclick="toggleZone(\''+zi+'\',\''+t.id+'\')"></div><div class="zone-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</div><div class="z-btns"><button class="z-btn add-t" onclick="addToToday(\''+zi+'\',\''+t.id+'\')"'+(isIn?' disabled':'')+'>→</button><button class="z-btn cancel-t" onclick="cancelTask(\''+zi+'\',\''+t.id+'\')">⊘</button><button class="z-btn del-t" onclick="deleteZoneTask(\''+zi+'\',\''+t.id+'\')">✕</button></div></div>'});h3+='<div class="zone-card" data-id="'+zi+'"><div class="zone-head"><span class="drag-handle zone-drag">☰</span><div class="zone-dot" style="background:'+zn.color+'"></div><div class="zone-name">'+zn.name+'</div><div class="zone-cnt">'+(cnt||'')+'</div></div><div class="zone-tasks" id="zone-tasks-'+zi+'">'+th+'</div><div class="add-row"><input class="add-input" id="inp-'+zi+'" placeholder="задача..." onkeydown="if(event.key===\'Enter\')addZoneTask(\''+zi+'\')"><button class="add-btn" onclick="addZoneTask(\''+zi+'\')">+</button></div></div>'});
+document.getElementById('zones-grid').innerHTML=h3;renderInboxBadge();renderCalNotifs();initSortables()}
+
+// WEEK
+function getWeekDates(){var n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff);var r=[];for(var i=0;i<7;i++){var x=new Date(m);x.setDate(m.getDate()+i);r.push(x)}return r}
+function dateKey(d){return d.toISOString().slice(0,10)}
+function renderWeek(){var dates=getWeekDates(),ds=todayStr(),h='';dates.forEach(function(date){var dk=dateKey(date),dow=date.getDay(),isT=dk===ds,isW=dow===0;var cls='week-day-card'+(isT?' is-today':'')+(isW?' is-weekend':'');var dn=DAY_FULL[dow];dn=dn[0].toUpperCase()+dn.slice(1);var dl=date.getDate()+' '+MONTHS_RU2[date.getMonth()];var tag=DAY_TAGS[dow],tagH=tag?'<span class="week-tag '+tag.c+'">'+tag.t+'</span>':'';
+var fx=FIXED[dow]||[],fxH='';if(fx.length){fxH='<div class="week-fixed">';fx.forEach(function(f){fxH+='<span class="week-fixed-tag" style="background:'+f.c+'15;color:'+f.c+';border-color:'+f.c+'33">'+(f.o?'<i>':'')+f.t+' '+esc(f.l)+(f.o?'</i>':'')+'</span>'});fxH+='</div>'}
+var fr=FREE_W[dow]||[],frH='';if(fr.length){frH='<div class="week-free">';fr.forEach(function(f){frH+='<span class="week-free-tag">🟢 '+esc(f)+'</span>'});frH+='</div>'}
+var mt=S.mainTask[dk],mH='';if(mt)mH='<div class="week-main-task"><div class="small-check'+(mt.done?' done':'')+'" onclick="toggleWeekMain(\''+dk+'\')"></div><span style="'+(mt.done?'text-decoration:line-through;color:#bbb':'')+'">⭐ '+esc(mt.text)+'</span></div>';
+var wt=S.weekTasks[dk]||[],wtH='';wt.forEach(function(t){var zn=null;ZONE_DEFS.forEach(function(z){if(z.id===t.zone)zn=z});wtH+='<div class="week-task-item"><div class="small-check'+(t.done?' done':'')+'" onclick="toggleWeekTask(\''+dk+'\',\''+t.id+'\')"></div><span class="week-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'+(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')+'<button class="z-btn del-t" onclick="deleteWeekTask(\''+dk+'\',\''+t.id+'\')">✕</button></div>'});
+var ibTasks=S.inbox.filter(function(x){return x.plannedDate===dk});ibTasks.forEach(function(t){var zn=null;ZONE_DEFS.forEach(function(z){if(z.id===t.zone)zn=z});wtH+='<div class="week-task-item from-inbox"><div class="small-check'+(t.done?' done':'')+'" onclick="toggleInboxDone(\''+t.id+'\')"></div><span class="week-task-inbox-icon" title="Из входящих">📥</span><span class="week-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'+(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')+'<button class="z-btn del-t" title="Снять с дня (вернётся во входящие)" onclick="unplanInbox(\''+t.id+'\')">✕</button></div>'});
+var aH='<div class="week-add-row"><input class="add-input" id="week-inp-'+dk+'" placeholder="+ задача" onkeydown="if(event.key===\'Enter\')addWeekTask(\''+dk+'\')"><select class="add-input" id="week-zone-'+dk+'" style="flex:0 0 auto;max-width:110px">';ZONE_DEFS.forEach(function(z){aH+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});aH+='</select><button class="add-btn" onclick="addWeekTask(\''+dk+'\')">+</button></div>';
+h+='<div class="'+cls+'"><div class="week-day-head"><span class="week-day-name">'+(isT?'● ':'')+dn+'<span class="week-day-date">'+dl+'</span></span>'+tagH+'</div><div class="week-day-body">'+fxH+frH+mH+wtH+aH+'</div></div>'});document.getElementById('week-container').innerHTML=h}
+function addWeekTask(dk){var i=document.getElementById('week-inp-'+dk),z=document.getElementById('week-zone-'+dk),t=i.value.trim();if(!t)return;if(!S.weekTasks[dk])S.weekTasks[dk]=[];S.weekTasks[dk].push({id:uid(),text:t,zone:z.value,done:false});i.value='';save();renderWeek()}
+function toggleWeekTask(dk,id){(S.weekTasks[dk]||[]).forEach(function(t){if(t.id===id)t.done=!t.done});save();renderWeek()}
+function deleteWeekTask(dk,id){S.weekTasks[dk]=(S.weekTasks[dk]||[]).filter(function(t){return t.id!==id});save();renderWeek()}
+function toggleWeekMain(dk){if(S.mainTask[dk]){S.mainTask[dk].done=!S.mainTask[dk].done;save();renderWeek();if(dk===todayStr())renderMainTask()}}
+
+// INBOX
+function renderInbox(){
+  var all=S.inbox.filter(function(x){return!x.done});
+  var unplanned=all.filter(function(x){return!x.plannedDate});
+  var planned=all.filter(function(x){return x.plannedDate});
+  document.getElementById('inbox-count').textContent='';
+  var sel=document.getElementById('inbox-zone-select');sel.innerHTML='<option value="">Сфера?</option>';ZONE_DEFS.forEach(function(z){sel.innerHTML+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});
+  var dates=getWeekDates();
+  function renderItem(item,isPlanned){
+    var zn=null;ZONE_DEFS.forEach(function(z){if(z.id===item.zone)zn=z});
+    var zH=zn?'<span class="inbox-item-zone" style="background:'+zn.color+'15;color:'+zn.color+'">'+esc(zn.name)+'</span>':'';
+    var checkH='<div class="small-check'+(item.done?' done':'')+'" onclick="toggleInboxDone(\''+item.id+'\')"></div>';
+    if(isPlanned){
+      var pd=new Date(item.plannedDate+'T12:00:00');
+      var label=DAY_SHORT[pd.getDay()]+' '+pd.getDate();
+      var opts='<option value="'+item.plannedDate+'" selected>'+label+'</option>';
+      dates.forEach(function(d){var dk=dateKey(d);if(dk!==item.plannedDate)opts+='<option value="'+dk+'">→ '+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
+      return '<div class="inbox-item planned">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+'<span class="inbox-planned-tag">📅 '+label+'</span><div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" title="Снять с дня" onclick="unplanInbox(\''+item.id+'\')">↺</button><button class="z-btn del-t" title="Удалить совсем" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+    }else{
+      var opts='<option value="" disabled selected>→ день</option>';
+      dates.forEach(function(d){opts+='<option value="'+dateKey(d)+'">'+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
+      return '<div class="inbox-item">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+'<div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+    }
+  }
+  var h='';
+  if(!all.length){h='<div class="inbox-empty">Пусто. Так держать.</div>';}
+  else if(!unplanned.length&&planned.length){
+    h+='<div class="inbox-empty" style="color:#1D7A44">✓ Всё раскинуто по дням. Запланированные ниже — с меткой 📅.</div>';
+    h+='<div class="inbox-subhead">Запланировано · '+planned.length+'</div>';
+    planned.sort(function(a,b){return a.plannedDate.localeCompare(b.plannedDate)}).forEach(function(x){h+=renderItem(x,true)});
+  }
+  else{
+    if(unplanned.length){h+='<div class="inbox-subhead">Не распределено · '+unplanned.length+'</div>';unplanned.forEach(function(x){h+=renderItem(x,false)});}
+    if(planned.length){h+='<div class="inbox-subhead">Запланировано · '+planned.length+'</div>';planned.sort(function(a,b){return a.plannedDate.localeCompare(b.plannedDate)}).forEach(function(x){h+=renderItem(x,true)});}
+  }
+  document.getElementById('inbox-list').innerHTML=h;
+}
+function renderInboxBadge(){var unplan=S.inbox.filter(function(x){return!x.done&&!x.plannedDate}).length;var plan=S.inbox.filter(function(x){return!x.done&&x.plannedDate}).length;var txt='Входящие';var badge='';if(unplan&&plan)badge='<span class="tab-badge">'+unplan+'+'+plan+'</span>';else if(unplan)badge='<span class="tab-badge">'+unplan+'</span>';else if(plan)badge='<span class="tab-badge" style="background:#3a5c8a">'+plan+'</span>';document.getElementById('inbox-tab-btn').innerHTML=txt+badge}
+function addInbox(){var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();if(!t)return;S.inbox.push({id:uid(),text:t,zone:z.value||null,created:todayStr(),done:false,plannedDate:null});i.value='';z.value='';save();renderInbox();renderInboxBadge();toast('Записано')}
+function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
+function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();var d=new Date(dk+'T12:00:00');var lbl=DAY_SHORT[d.getDay()]+' '+d.getDate();toast(wasPlanned?'Перенесено на '+lbl:'→ '+lbl+' · в «Запланировано» ниже');setTimeout(function(){var el=document.querySelector('.inbox-item.planned');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'})},150)}
+function unplanInbox(iid){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item)return;item.plannedDate=null;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Снято с дня')}
+function toggleInboxDone(iid){S.inbox.forEach(function(x){if(x.id===iid)x.done=!x.done});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek()}
+
+// ZONES
+function inToday(id){for(var i=0;i<S.today.length;i++)if(S.today[i].sourceId===id)return true;return false}
+function addToToday(zi,ti){if(inToday(ti))return;var zn=null,tk=null;ZONE_DEFS.forEach(function(z){if(z.id===zi)zn=z});S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk)return;S.today.push({id:uid(),text:tk.text,zone:zn?zn.name:zi,zoneId:zi,sourceId:ti,done:false});save();render()}
+function removeToday(id){S.today=S.today.filter(function(t){return t.id!==id});save();render()}
+function toggleToday(id){S.today.forEach(function(t){if(t.id===id){t.done=!t.done;if(t.sourceId&&S.zones[t.zoneId]){S.zones[t.zoneId].tasks.forEach(function(z){if(z.id===t.sourceId)z.done=t.done})}}});save();render()}
+function toggleZone(zi,ti){S.zones[zi].tasks.forEach(function(t){if(t.id===ti){t.done=!t.done;S.today.forEach(function(td){if(td.sourceId===ti)td.done=t.done})}});save();render()}
+function addZoneTask(zi){var e=document.getElementById('inp-'+zi),t=e.value.trim();if(!t)return;S.zones[zi].tasks.push({id:uid(),text:t,done:false});e.value='';save();render()}
+function cancelTask(zi,ti){var zn=null,tk=null;ZONE_DEFS.forEach(function(z){if(z.id===zi)zn=z});S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk||!confirm('Отменить «'+tk.text+'»?'))return;S.archive.unshift({id:uid(),text:tk.text,zone:zn?zn.name:zi,zoneId:zi,sourceId:ti,status:'cancelled',archivedAt:todayLabel(),archivedDate:todayStr()});S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==ti});S.today=S.today.filter(function(t){return t.sourceId!==ti});save();render();toast('→ архив')}
+function deleteZoneTask(zi,ti){var tk=null;S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk||!confirm('Удалить «'+tk.text+'»?'))return;S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==ti});S.today=S.today.filter(function(t){return t.sourceId!==ti});save();render()}
+
+// NEW DAY
+function newDay(){if(!confirm('Новый день?\nВыполненные → архив, ежедневные → сброс.'))return;var l=todayLabel(),ds=todayStr(),c=0;S.today.filter(function(t){return t.done}).forEach(function(t){S.archive.unshift({id:uid(),text:t.text,zone:t.zone||'',zoneId:t.zoneId,sourceId:t.sourceId,status:'done',archivedAt:l,archivedDate:ds});if(t.zoneId&&t.sourceId&&S.zones[t.zoneId])S.zones[t.zoneId].tasks=S.zones[t.zoneId].tasks.filter(function(z){return z.id!==t.sourceId});c++});S.today=S.today.filter(function(t){return!t.done});ZONE_DEFS.forEach(function(z){var k=[];S.zones[z.id].tasks.forEach(function(t){if(t.done){S.archive.unshift({id:uid(),text:t.text,zone:z.name,zoneId:z.id,sourceId:t.id,status:'done',archivedAt:l,archivedDate:ds});c++}else k.push(t)});S.zones[z.id].tasks=k});S.reminders.forEach(function(r){r.done=false});S.date=ds;save();render();toast(c+' → архив')}
+
+// REMINDERS
+function toggleReminder(id){S.reminders.forEach(function(r){if(r.id===id)r.done=!r.done});save();render()}
+function deleteReminder(id){if(!confirm('Удалить?'))return;S.reminders=S.reminders.filter(function(r){return r.id!==id});save();render()}
+function addReminder(){var e=document.getElementById('inp-remind'),t=e.value.trim();if(!t)return;S.reminders.push({id:uid(),text:t,done:false});e.value='';save();render()}
+
+// ARCHIVE
+function openArchive(){renderArchive();document.getElementById('arch-overlay').classList.add('open')}
+function closeArchive(){document.getElementById('arch-overlay').classList.remove('open')}
+function restoreFromArchive(ai){var item=null;S.archive.forEach(function(a){if(a.id===ai)item=a});if(!item)return;if(item.zoneId&&S.zones[item.zoneId])S.zones[item.zoneId].tasks.push({id:uid(),text:item.text,done:false});S.archive=S.archive.filter(function(a){return a.id!==ai});save();renderArchive();render();toast('Возвращено')}
+function clearArchive(){if(!confirm('Очистить архив?'))return;S.archive=[];save();renderArchive()}
+function renderArchive(){var c=S.archive.length;document.getElementById('arch-count').textContent=c?c+' задач':'пусто';var b=document.getElementById('archive-body');if(!c){b.innerHTML='<div class="arch-empty">Архив пуст</div>';return}var g={},o=[];S.archive.forEach(function(a){var k=a.archivedAt||'Ранее';if(!g[k]){g[k]=[];o.push(k)}g[k].push(a)});var h='';o.forEach(function(d){h+='<div><div class="arch-date-label">'+esc(d)+'</div>';g[d].forEach(function(a){h+='<div class="arch-task">'+(a.status==='done'?'<div class="arch-done-icon"></div>':'<div class="arch-cancel-icon">⊘</div>')+'<div class="arch-task-text">'+esc(a.text)+'</div><span class="arch-zone-badge">'+esc(a.zone)+'</span><span class="arch-status '+a.status+'">'+(a.status==='done'?'✓':'⊘')+'</span><button class="restore-btn" onclick="restoreFromArchive(\''+a.id+'\')">вернуть</button></div>'});h+='</div>'});h+='<div style="padding:10px 16px;text-align:right"><button style="font-size:12px;color:#ccc;background:none;border:none;cursor:pointer" onclick="clearArchive()">Очистить</button></div>';b.innerHTML=h}
+
+// BACKUP
+function openBackup(){renderBackupStatus();document.getElementById('backup-overlay').classList.add('open')}
+function closeBackup(){document.getElementById('backup-overlay').classList.remove('open')}
+function renderBackupStatus(){var el=document.getElementById('backup-status-line');if(!el)return;var lb=localStorage.getItem('ez-last-backup');if(!lb){el.style.background='#fdecec';el.style.color='#8b2020';el.textContent='⚠️ Бэкап ещё НЕ делался. Скачай копию прямо сейчас.';return}var days=Math.floor((Date.now()-parseInt(lb,10))/(24*60*60*1000));if(days>=7){el.style.background='#fdecec';el.style.color='#8b2020';el.textContent='⚠️ Последний бэкап '+days+' дн. назад. Пора скачать новый.'}else if(days>=3){el.style.background='#fffbe5';el.style.color='#7a5c00';el.textContent='Последний бэкап '+days+' дн. назад. Лучше обновить.'}else{el.style.background='#e8f5ee';el.style.color='#1D7A44';el.textContent='✓ Последний бэкап '+(days===0?'сегодня':days+' дн. назад')+'.'}}
+function exportData(){var d=JSON.stringify(S,null,2),b=new Blob([d],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a'),n=new Date();a.href=u;a.download='ezhednevnik-'+n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);localStorage.setItem('ez-last-backup',String(Date.now()));renderBackupStatus();toast('Скачано')}
+
+function applyImportedState(p){
+  if(!p||typeof p!=='object'){alert('Это не похоже на JSON ежедневника');return false}
+  if(!p.zones||typeof p.zones!=='object'){alert('В файле нет поля zones — это не бэкап ежедневника');return false}
+  S=p;
+  if(!S.today)S.today=[];
+  if(!S.archive)S.archive=[];
+  if(!S.reminders)S.reminders=[];
+  if(!S.calendar)S.calendar={};
+  if(!S.inbox)S.inbox=[];
+  if(!S.weekTasks)S.weekTasks={};
+  if(!S.mainTask)S.mainTask={};
+  if(!S.zoneOrder)S.zoneOrder=ZONE_DEFS.map(function(d){return d.id});
+  S.inbox.forEach(function(x){if(typeof x.plannedDate==='undefined')x.plannedDate=null});
+  ZONE_DEFS.forEach(function(z){if(!S.zones[z.id])S.zones[z.id]={tasks:[]}});
+  save();render();closeBackup();toast('✓ Восстановлено');
+  return true;
+}
+
+function importData(ev){
+  var f=ev.target.files[0];
+  if(!f){alert('Файл не выбран');return}
+  function tryParse(txt, source){
+    try{
+      // Убираем BOM если есть
+      if(txt.charCodeAt(0)===0xFEFF)txt=txt.slice(1);
+      var p=JSON.parse(txt);
+      applyImportedState(p);
+      return true;
+    }catch(err){
+      console.error('Parse fail ('+source+'):',err.message);
+      return false;
+    }
+  }
+  // Попытка 1: readAsText (стандарт)
+  var r=new FileReader();
+  r.onload=function(e){
+    var txt=e.target.result;
+    if(txt&&tryParse(txt,'readAsText'))return;
+    // Попытка 2: readAsArrayBuffer + TextDecoder (для content:// URL на Android)
+    var r2=new FileReader();
+    r2.onload=function(e2){
+      try{
+        var buf=e2.target.result;
+        var dec=new TextDecoder('utf-8');
+        var txt2=dec.decode(buf);
+        if(tryParse(txt2,'arrayBuffer'))return;
+        alert('Не получилось прочитать файл. Открой JSON в любом просмотрщике, скопируй весь текст и вставь через «Вариант 2» — это точно сработает.');
+      }catch(err){
+        alert('Файл не читается: '+err.message+'\n\nПопробуй скопировать текст JSON и вставить через «Вариант 2».');
+      }
+    };
+    r2.onerror=function(){alert('Ошибка чтения через ArrayBuffer. Используй «Вариант 2» — вставку текста.')};
+    r2.readAsArrayBuffer(f);
+  };
+  r.onerror=function(){
+    alert('Яндекс.Браузер не смог прочитать файл (content:// URL). Используй «Вариант 2»: открой JSON в просмотрщике, скопируй текст и вставь.');
+  };
+  try{r.readAsText(f,'utf-8')}catch(e){
+    alert('Файл вообще не открылся. Используй «Вариант 2» — вставку текста.');
+  }
+  ev.target.value='';
+}
+
+function importFromText(){
+  var ta=document.getElementById('paste-json');
+  var txt=(ta.value||'').trim();
+  if(!txt){alert('Сначала вставь текст JSON');return}
+  try{
+    var p=JSON.parse(txt);
+    if(applyImportedState(p))ta.value='';
+  }catch(err){
+    alert('Это не валидный JSON: '+err.message);
+  }
+}
+
+// CALENDAR
+var calYear,calMonth,calSelectedDate;
+function renderCalNotifs(){var ds=todayStr(),tom=new Date();tom.setDate(tom.getDate()+1);var ts=dateKey(tom);var tn=S.calendar[ds],tmn=S.calendar[ts];var tp=document.getElementById('cal-today-pill'),tmp=document.getElementById('cal-tomorrow-pill');if(tn){tp.classList.add('show');document.getElementById('pop-today-text').textContent=tn}else tp.classList.remove('show');if(tmn){tmp.classList.add('show');document.getElementById('pop-tomorrow-text').textContent=tmn}else tmp.classList.remove('show')}
+function closePopovers(){document.getElementById('pop-today').classList.remove('open');document.getElementById('pop-tomorrow').classList.remove('open')}
+function toggleCalPopover(w){var p=w==='today'?'pop-today':'pop-tomorrow',o=w==='today'?'pop-tomorrow':'pop-today';document.getElementById(o).classList.remove('open');document.getElementById(p).classList.toggle('open')}
+document.addEventListener('click',function(e){if(!e.target.closest('.cal-notif-pill'))closePopovers()});
+function openCalendar(){var d=new Date();calYear=d.getFullYear();calMonth=d.getMonth();calSelectedDate=null;renderCal();document.getElementById('cal-overlay').classList.add('open')}
+function closeCalendar(){document.getElementById('cal-overlay').classList.remove('open')}
+function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}calSelectedDate=null;renderCal()}
+function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}calSelectedDate=null;renderCal()}
+function renderCal(){document.getElementById('cal-month-label').textContent=MONTHS_RU[calMonth]+' '+calYear;var f=new Date(calYear,calMonth,1),sd=(f.getDay()+6)%7,dm=new Date(calYear,calMonth+1,0).getDate(),ds=todayStr();var h='';['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d){h+='<div class="cal-dow">'+d+'</div>'});for(var i=0;i<sd;i++)h+='<div class="cal-day empty"></div>';for(var d=1;d<=dm;d++){var dk=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),it=dk===ds,n=S.calendar[dk]||'';h+='<div class="cal-day'+(it?' today':'')+(n?' has-note':'')+'" onclick="calSelectDay(\''+dk+'\','+d+')"><div class="cal-day-num">'+d+'</div>'+(n?'<div class="cal-day-note">'+esc(n)+'</div>':'')+'</div>'}document.getElementById('cal-grid').innerHTML=h;document.getElementById('cal-editor').style.display=calSelectedDate?'block':'none'}
+function calSelectDay(dk,d){calSelectedDate=dk;document.getElementById('cal-editor').style.display='block';document.getElementById('cal-editor-title').textContent=d+' '+MONTHS_RU2[calMonth]+' '+calYear;document.getElementById('cal-textarea').value=S.calendar[dk]||'';document.getElementById('cal-del-btn').style.display=S.calendar[dk]?'inline-block':'none'}
+function calSaveNote(){var t=document.getElementById('cal-textarea').value.trim();if(t)S.calendar[calSelectedDate]=t;else delete S.calendar[calSelectedDate];save();renderCal();renderCalNotifs();toast('Сохранено')}
+function calDeleteNote(){delete S.calendar[calSelectedDate];save();renderCal();renderCalNotifs();toast('Удалено')}
+
+// SORTABLE
+var _sortables=[];
+function initSortables(){_sortables.forEach(function(s){try{s.destroy()}catch(e){}});_sortables=[];if(typeof Sortable==='undefined')return;var te=document.getElementById('today-tasks');if(te&&S.today.length>0)_sortables.push(new Sortable(te,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.today.splice(e.oldIndex,1)[0];S.today.splice(e.newIndex,0,i);save()}}));var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(ze,{handle:'.zone-drag',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zoneOrder.splice(e.oldIndex,1)[0];S.zoneOrder.splice(e.newIndex,0,i);save()}}));(S.zoneOrder||[]).forEach(function(zi){var el=document.getElementById('zone-tasks-'+zi);if(!el||!S.zones[zi]||S.zones[zi].tasks.length<2)return;_sortables.push(new Sortable(el,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zones[zi].tasks.splice(e.oldIndex,1)[0];S.zones[zi].tasks.splice(e.newIndex,0,i);save()}}))})}
+
+load();render();cleanupArchive();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+</body>
+</html>
