@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#1a1a18"/>
+  <!-- строка 1: главная задача, выполнена (красный) -->
+  <rect x="96" y="120" width="64" height="64" rx="16" fill="#b03020"/>
+  <path d="M112 152 l12 14 24 -30" fill="none" stroke="#f0eeea" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="188" y="140" width="228" height="24" rx="12" fill="#b03020"/>
+  <!-- строка 2: выполнена (зелёный) -->
+  <rect x="96" y="224" width="64" height="64" rx="16" fill="#27ae60"/>
+  <path d="M112 256 l12 14 24 -30" fill="none" stroke="#f0eeea" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="188" y="244" width="168" height="24" rx="12" fill="#27ae60"/>
+  <!-- строка 3: пустая (серый) -->
+  <rect x="100" y="332" width="56" height="56" rx="14" fill="none" stroke="#787870" stroke-width="8"/>
+  <rect x="188" y="348" width="196" height="24" rx="12" fill="#787870"/>
+</svg>

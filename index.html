@@ -2,8 +2,15 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Ежедневник</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a18">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ежедневник">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0eeea; color: #1a1a18; min-height: 100vh; padding: 14px; padding-bottom: 70px; }
@@ -257,47 +264,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 <div id="save-indicator" style="position:fixed;top:14px;right:14px;font-size:11px;color:#27ae60;opacity:0;transition:opacity 0.3s;z-index:60;pointer-events:none;background:#e8f5ee;padding:3px 10px;border-radius:6px;">✓ сохранено</div>
 
 <script>
-var EMBEDDED_BACKUP_VERSION='restore-2026-04-22-full';
+var EMBEDDED_BACKUP_VERSION='restore-2026-06-24';
 var EMBEDDED_BACKUP={
   "today": [
     {
-      "id": "rmo9qr0uc_24",
-      "text": "Диме в курсе заменить молот на актуальный",
+      "id": "h6ag6kk",
+      "text": "М. Сделать отложку уроков",
       "zone": "Онлайн-школа",
       "zoneId": "school",
-      "sourceId": "rmo9qr0uc_8",
+      "sourceId": "db05xp0",
       "done": false
     },
     {
-      "id": "rmo9qr0uc_25",
-      "text": "Скинуть Диме коллабу (исходники)",
-      "zone": "Онлайн-школа",
-      "zoneId": "school",
-      "sourceId": "rmo9qr0uc_10",
+      "id": "1zmhvax",
+      "text": "сегодня видео про площадку + кадры с завтра",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "sourceId": "v1eert7",
       "done": false
     },
     {
-      "id": "rmo9qr0uc_26",
-      "text": "модели, пара правок. Ответить Вове",
-      "zone": "Фриланс",
-      "zoneId": "freelance",
-      "sourceId": "rmo9qr0uc_6",
-      "done": true
-    },
-    {
-      "id": "rmo9qr0uc_27",
-      "text": "закинуть на диск итоги по курсу от Димургеса",
-      "zone": "Онлайн-школа",
-      "zoneId": "school",
-      "sourceId": "rmo9qr0uc_12",
-      "done": false
-    },
-    {
-      "id": "rmo9qr0uc_28",
-      "text": "Сценарий фидбека",
-      "zone": "Онлайн-школа",
-      "zoneId": "school",
-      "sourceId": "rmo9qr0uc_7",
+      "id": "lcl94aj",
+      "text": "составить отчет за год",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "gu0ugds",
       "done": false
     }
   ],
@@ -305,13 +296,8 @@ var EMBEDDED_BACKUP={
     "ddt": {
       "tasks": [
         {
-          "id": "rmo9qr0ub_1",
-          "text": "Медиаволонтеры Заявы",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0ub_2",
-          "text": "Медкомиссия в мае",
+          "id": "v1eert7",
+          "text": "сегодня видео про площадку + кадры с завтра",
           "done": false
         }
       ]
@@ -319,8 +305,13 @@ var EMBEDDED_BACKUP={
     "gimnaziya": {
       "tasks": [
         {
-          "id": "rmo9qr0ub_3",
-          "text": "Снять и отправить научный видос НИСО конкурс",
+          "id": "gu0ugds",
+          "text": "составить отчет за год",
+          "done": false
+        },
+        {
+          "id": "rj896x7",
+          "text": "сделать виде Сбоев. До конца июня",
           "done": false
         }
       ]
@@ -328,42 +319,17 @@ var EMBEDDED_BACKUP={
     "freelance": {
       "tasks": [
         {
-          "id": "rmo9qr0ub_4",
-          "text": "Келек 2 видео в работе",
+          "id": "kk3ng1n",
+          "text": "келлек. моделька архипелаг",
           "done": false
-        },
-        {
-          "id": "rmo9qr0uc_5",
-          "text": "следить за состоянием Темы",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_6",
-          "text": "модели, пара правок. Ответить Вове",
-          "done": true
         }
       ]
     },
     "school": {
       "tasks": [
         {
-          "id": "rmo9qr0uc_7",
-          "text": "Сценарий фидбека",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_8",
-          "text": "Диме в курсе заменить молот на актуальный",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_9",
-          "text": "анимировать работы детей с прошлого челленджа",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_10",
-          "text": "Скинуть Диме коллабу (исходники)",
+          "id": "db05xp0",
+          "text": "М. Сделать отложку уроков",
           "done": false
         },
         {
@@ -372,46 +338,35 @@ var EMBEDDED_BACKUP={
           "done": false
         },
         {
-          "id": "rmo9qr0uc_12",
-          "text": "закинуть на диск итоги по курсу от Димургеса",
+          "id": "va8hk50",
+          "text": "репосты Вани. Ответить ему",
           "done": false
         },
         {
-          "id": "rmo9qr0uc_13",
-          "text": "Прогнать уроки блока для марафона. Что уложить в неделю реально для детей?",
+          "id": "abc861u",
+          "text": "проверить логику кп",
           "done": false
         }
       ]
     },
     "moto": {
-      "tasks": [
-        {
-          "id": "rmo9qr0uc_14",
-          "text": "Дети говорят Картинг. Сделать",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_15",
-          "text": "Скоро финал конкурса",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_16",
-          "text": "уточнить у НАташи про вожатых. Когда смена? Алена",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_17",
-          "text": "Вожатые могут фоткать и видео снимать. Я монтировать",
-          "done": false
-        }
-      ]
+      "tasks": []
     },
     "mediavol": {
       "tasks": [
         {
-          "id": "rmo9qr0uc_18",
-          "text": "Вечером проверять как идут дела с видео",
+          "id": "rffk0rg",
+          "text": "записать видео про премьер. обещал в пн",
+          "done": false
+        },
+        {
+          "id": "udryj8o",
+          "text": "Рыцари видео",
+          "done": false
+        },
+        {
+          "id": "gzkoz5q",
+          "text": "все потухло",
           "done": false
         }
       ]
@@ -419,29 +374,14 @@ var EMBEDDED_BACKUP={
     "personal": {
       "tasks": [
         {
-          "id": "rmo9qr0uc_19",
-          "text": "Спорт 2р/нед",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_20",
-          "text": "поиграть в компик",
-          "done": false
-        },
-        {
-          "id": "rmo9qr0uc_21",
-          "text": "Туса 2к17 25.04 23:00",
+          "id": "hmt77mt",
+          "text": "драконы",
           "done": false
         }
       ]
     },
     "home": {
       "tasks": [
-        {
-          "id": "rmo9qr0uc_22",
-          "text": "Поменять счетчики. Вода",
-          "done": false
-        },
         {
           "id": "rmo9qr0uc_23",
           "text": "Повторный герметик",
@@ -451,172 +391,545 @@ var EMBEDDED_BACKUP={
     }
   },
   "zoneOrder": [
-    "ddt",
     "gimnaziya",
-    "freelance",
     "school",
-    "moto",
+    "ddt",
+    "freelance",
     "mediavol",
     "personal",
-    "home"
+    "home",
+    "moto"
   ],
   "reminders": [
     {
       "id": "rmo9qr0uc_29",
       "text": "Зарядка",
-      "done": true
+      "done": false
     },
     {
       "id": "rmo9qr0uc_30",
       "text": "Не курить",
-      "done": true
+      "done": false
     },
     {
       "id": "rmo9qr0uc_31",
       "text": "Выпить воду",
-      "done": true
+      "done": false
     },
     {
       "id": "rmo9qr0uc_32",
       "text": "Составить план",
-      "done": true
+      "done": false
     },
     {
       "id": "rmo9qr0uc_33",
       "text": "Витамины утро",
-      "done": true
+      "done": false
     }
   ],
   "archive": [
     {
-      "id": "rmo9qr0uc_43",
-      "text": "приготовить еду",
-      "zone": "Дом/Семья",
-      "zoneId": "home",
-      "status": "done",
-      "archivedAt": "среда, 22 апреля",
-      "archivedDate": "2026-04-22"
-    },
-    {
-      "id": "rmo9qr0uc_44",
-      "text": "оценочный до 11:00",
-      "zone": "ДДТ",
-      "zoneId": "ddt",
-      "status": "done",
-      "archivedAt": "пятница, 17 апреля",
-      "archivedDate": "2026-04-17"
-    },
-    {
-      "id": "rmo9qr0uc_45",
-      "text": "взять документы для заполнения детям. Горит",
-      "zone": "ДДТ",
-      "zoneId": "ddt",
-      "status": "done",
-      "archivedAt": "пятница, 17 апреля",
-      "archivedDate": "2026-04-17"
-    },
-    {
-      "id": "rmo9qr0uc_46",
-      "text": "в ЧТ орг моменты с детьми перед съемкой",
-      "zone": "Медиаволонтёры",
-      "zoneId": "mediavol",
-      "status": "done",
-      "archivedAt": "пятница, 17 апреля",
-      "archivedDate": "2026-04-17"
-    },
-    {
-      "id": "rmo9qr0uc_47",
-      "text": "Сказать про пятницу и выезд. Надбавки",
-      "zone": "ДДТ",
-      "zoneId": "ddt",
-      "status": "done",
-      "archivedAt": "пятница, 17 апреля",
-      "archivedDate": "2026-04-17"
-    },
-    {
-      "id": "rmo9qr0uc_48",
-      "text": "утром написать детям. Уточнить кто где",
-      "zone": "Медиаволонтёры",
-      "zoneId": "mediavol",
-      "status": "done",
-      "archivedAt": "пятница, 17 апреля",
-      "archivedDate": "2026-04-17"
-    },
-    {
-      "id": "rmo9qr0uc_49",
-      "text": "Приказ Островерх",
-      "zone": "Гимназия",
-      "zoneId": "gimnaziya",
-      "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
-    },
-    {
-      "id": "rmo9qr0uc_50",
-      "text": "парни ездили на съемку. У кого-то флешка. У кого?",
-      "zone": "Гимназия",
-      "zoneId": "gimnaziya",
-      "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
-    },
-    {
-      "id": "rmo9qr0uc_51",
-      "text": "разобраться с парнями",
-      "zone": "Гимназия",
-      "zoneId": "gimnaziya",
-      "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
-    },
-    {
-      "id": "rmo9qr0uc_52",
-      "text": "мб задача от Вовы будет сегодня",
-      "zone": "Фриланс",
-      "zoneId": "freelance",
-      "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
-    },
-    {
-      "id": "rmo9qr0uc_53",
-      "text": "поддержать Ратмира. Нельзя терять",
+      "id": "uagdd6f",
+      "text": "закинуть на диск итоги по курсу от Димургеса",
       "zone": "Онлайн-школа",
       "zoneId": "school",
+      "sourceId": "rmo9qr0uc_12",
       "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
+      "archivedAt": "среда, 24 июня",
+      "archivedDate": "2026-06-24"
     },
     {
-      "id": "rmo9qr0uc_54",
-      "text": "проверить страховку КВ",
+      "id": "7e3ws2a",
+      "text": "написать Вове про приняиую оплату",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "l66fvby",
+      "status": "done",
+      "archivedAt": "среда, 24 июня",
+      "archivedDate": "2026-06-24"
+    },
+    {
+      "id": "oqhal5i",
+      "text": "Журналы",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "sourceId": "cd458w0",
+      "status": "done",
+      "archivedAt": "среда, 24 июня",
+      "archivedDate": "2026-06-24"
+    },
+    {
+      "id": "pf2ppp5",
+      "text": "пост в вк",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "m35m6j7",
+      "status": "done",
+      "archivedAt": "среда, 24 июня",
+      "archivedDate": "2026-06-24"
+    },
+    {
+      "id": "q79xhtb",
+      "text": "23.06 марафон 2",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "7d2y3g4",
+      "status": "done",
+      "archivedAt": "среда, 24 июня",
+      "archivedDate": "2026-06-24"
+    },
+    {
+      "id": "er84wjv",
+      "text": "жду чек",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "6qqmh9q",
+      "status": "done",
+      "archivedAt": "среда, 24 июня",
+      "archivedDate": "2026-06-24"
+    },
+    {
+      "id": "rxfuqi0",
+      "text": "убраться на столе",
       "zone": "Дом/Семья",
       "zoneId": "home",
+      "sourceId": "x02bhyr",
       "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
     },
     {
-      "id": "rmo9qr0uc_55",
-      "text": "напомнить про браслеты",
+      "id": "zjviw1v",
+      "text": "помыть посуду",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "sourceId": "q1b6d56",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "hjeihjc",
+      "text": "итоговый видос со смены",
+      "zone": "Автомотоцентр",
+      "zoneId": "moto",
+      "sourceId": "e2hbwgy",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "su5uyss",
+      "text": "в сб съемка в лагере",
+      "zone": "Автомотоцентр",
+      "zoneId": "moto",
+      "sourceId": "wzu7wff",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "6aofy48",
+      "text": "Подарок, камера, штатив, дым машина",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "sourceId": "11c0x1o",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "n8npui2",
+      "text": "22:00 Мирон",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "sourceId": "j4y593a",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "hqd8gci",
+      "text": "спорт",
+      "zone": "Личное",
+      "zoneId": "personal",
+      "sourceId": "gfttgsr",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "hrlrr8e",
+      "text": "зписать зкт и видео для итогов марафона",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "5ynvafd",
+      "status": "done",
+      "archivedAt": "вторник, 23 июня",
+      "archivedDate": "2026-06-22"
+    },
+    {
+      "id": "9sm6hfv",
+      "text": "12 мая весь день",
+      "zone": "Автомотоцентр",
+      "zoneId": "moto",
+      "sourceId": "ilqcsja",
+      "status": "done",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "wggutef",
+      "text": "Диме в курсе заменить молот на актуальный",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_8",
+      "status": "done",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "uxqtpya",
+      "text": "выставить чеки Дима + Тема",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "p8c2esq",
+      "status": "done",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "1g4qd3u",
+      "text": "мотивация пацанов. Написать заранее про занятие и растормошить их + баллы ставлю",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "4d6rurw",
+      "status": "done",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "r8870ml",
+      "text": "11 класс выпускной слайд-шоу",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "bxbwl5h",
+      "status": "done",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "j2rpluv",
+      "text": "Юля. Видос на конкурс?",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "aiaosvb",
+      "status": "done",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "owvna8u",
+      "text": "Медиаволонтеры Заявы",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "sourceId": "rmo9qr0ub_1",
+      "status": "cancelled",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "uc0am5d",
+      "text": "пост зари. Кп???",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "qclrihs",
+      "status": "cancelled",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "mq1rm48",
+      "text": "Прогнать уроки блока для марафона. Что уложить в неделю реально для детей?",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_13",
+      "status": "cancelled",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "tm5xzzz",
+      "text": "анимировать работы детей с прошлого челленджа",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_9",
+      "status": "cancelled",
+      "archivedAt": "четверг, 18 июня",
+      "archivedDate": "2026-06-18"
+    },
+    {
+      "id": "0fikpbr",
+      "text": "поиграть в компик",
+      "zone": "Личное",
+      "zoneId": "personal",
+      "sourceId": "rmo9qr0uc_20",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "5n1hksa",
+      "text": "Спорт 2р/нед",
+      "zone": "Личное",
+      "zoneId": "personal",
+      "sourceId": "rmo9qr0uc_19",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "9yy2eui",
+      "text": "уточнить состояние видео архипелаг",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "inx5062",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "tuzpuzk",
+      "text": "следить за состоянием Темы",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "rmo9qr0uc_5",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "wdzvue5",
+      "text": "благодарственное Лизе. Забыли",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "sourceId": "zu95pzm",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "rnimvmd",
+      "text": "Медкомиссия в мае",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "sourceId": "rmo9qr0ub_2",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "02w388h",
+      "text": "оформить тг и вк (оптсание)",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "y91uki8",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "q6uoyf4",
+      "text": "дозаписать часть в блендер",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "hna2ggl",
+      "status": "done",
+      "archivedAt": "суббота, 9 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "bsrvmjw",
+      "text": "написать сценарий и распределить задач по видео на конкурс",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "8juaau6",
+      "status": "cancelled",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "622d3bi",
+      "text": "Снять и отправить научный видос НИСО конкурс",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "rmo9qr0ub_3",
+      "status": "cancelled",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "8f240dl",
+      "text": "Срочно оформить ютуб !",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "n86s94d",
+      "status": "cancelled",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "n464cb7",
+      "text": "повесить шторы",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "sourceId": "kqru6wz",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "is188uw",
+      "text": "Поменять счетчики. Вода",
+      "zone": "Дом/Семья",
+      "zoneId": "home",
+      "sourceId": "rmo9qr0uc_22",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "asojqr9",
+      "text": "Туса 2к17 25.04 23:00",
+      "zone": "Личное",
+      "zoneId": "personal",
+      "sourceId": "rmo9qr0uc_21",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "1tsc4ot",
+      "text": "благодарственные письма",
       "zone": "Медиаволонтёры",
       "zoneId": "mediavol",
+      "sourceId": "elw7tcn",
       "status": "done",
-      "archivedAt": "четверг, 16 апреля",
-      "archivedDate": "2026-04-16"
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "wtxxnzv",
+      "text": "назначить занятие в сб",
+      "zone": "Медиаволонтёры",
+      "zoneId": "mediavol",
+      "sourceId": "djgb3vs",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "ny2ofgr",
+      "text": "Вечером проверять как идут дела с видео",
+      "zone": "Медиаволонтёры",
+      "zoneId": "mediavol",
+      "sourceId": "rmo9qr0uc_18",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "6uugbfb",
+      "text": "Дети говорят Картинг. Сделать",
+      "zone": "Автомотоцентр",
+      "zoneId": "moto",
+      "sourceId": "rmo9qr0uc_14",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "3frj4oh",
+      "text": "Келек 2 видео в работе",
+      "zone": "Фриланс",
+      "zoneId": "freelance",
+      "sourceId": "rmo9qr0ub_4",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "d4i8qu0",
+      "text": "на телики презу. Сделать в видео",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "x5e1n8b",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "fgakflk",
+      "text": "Видос для юниора. Волонтерство",
+      "zone": "Гимназия",
+      "zoneId": "gimnaziya",
+      "sourceId": "ea69uj6",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "pweea3t",
+      "text": "благодраственные",
+      "zone": "ДДТ",
+      "zoneId": "ddt",
+      "sourceId": "b0it7wx",
+      "status": "done",
+      "archivedAt": "пятница, 8 мая",
+      "archivedDate": "2026-05-08"
+    },
+    {
+      "id": "1itxfs2",
+      "text": "что по посту сегодня? Женя",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "gacqaql",
+      "status": "done",
+      "archivedAt": "вторник, 28 апреля",
+      "archivedDate": "2026-04-28"
+    },
+    {
+      "id": "at5nm3j",
+      "text": "Сценарий фидбека",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "rmo9qr0uc_7",
+      "status": "done",
+      "archivedAt": "вторник, 28 апреля",
+      "archivedDate": "2026-04-28"
+    },
+    {
+      "id": "rorf9c2",
+      "text": "пост кружок",
+      "zone": "Онлайн-школа",
+      "zoneId": "school",
+      "sourceId": "8udt7j4",
+      "status": "done",
+      "archivedAt": "вторник, 28 апреля",
+      "archivedDate": "2026-04-28"
     }
   ],
-  "date": "2026-04-22",
-  "calendar": {},
+  "date": "2026-06-24",
+  "calendar": {
+    "2026-04-08": "Гости",
+    "2026-04-23": "Съемка конкурс НИСО + план по занятиям. Расшифровка",
+    "2026-05-12": "автомото с самого утра",
+    "2026-05-09": "гости",
+    "2026-05-17": "съемка Лисакова",
+    "2026-06-29": "гости",
+    "2026-06-30": "переезд"
+  },
   "inbox": [
-    {
-      "id": "rmo9qr0uc_34",
-      "text": "От НИСО лучший гид. Прогулка по центру города. В чт поискать",
-      "zone": "gimnaziya",
-      "created": "2026-04-22",
-      "done": false,
-      "plannedDate": null
-    },
     {
       "id": "rmo9qr0uc_35",
       "text": "Засинхронить тамагочи и ежедневник. Типа раб.тетради",
@@ -630,15 +943,7 @@ var EMBEDDED_BACKUP={
       "text": "17 мая съемка концерта Лисакова 8к",
       "zone": "freelance",
       "created": "2026-04-22",
-      "done": false,
-      "plannedDate": null
-    },
-    {
-      "id": "rmo9qr0uc_37",
-      "text": "Предложить Наташе Алениных вожатых. В кош вожатых по ГПХ можно. Алена шарит. Но смотря когда смена (в июне уже сложно)",
-      "zone": "moto",
-      "created": "2026-04-22",
-      "done": false,
+      "done": true,
       "plannedDate": null
     },
     {
@@ -650,50 +955,50 @@ var EMBEDDED_BACKUP={
       "plannedDate": null
     },
     {
-      "id": "rmo9qr0uc_39",
-      "text": "до 30 апреля снять видос и отправить на конкурс НИСО фест медиатворчества",
-      "zone": "gimnaziya",
-      "created": "2026-04-22",
-      "done": false,
-      "plannedDate": null
-    },
-    {
       "id": "rmo9qr0uc_40",
       "text": "сделать расшифровку собрания с детьми. Составить план занятий и концепцию для гимназии",
       "zone": "gimnaziya",
       "created": "2026-04-22",
-      "done": false,
-      "plannedDate": null
+      "done": true,
+      "plannedDate": "2026-04-23"
     },
     {
-      "id": "rmo9qr0uc_41",
-      "text": "пеирнетн",
-      "zone": "gimnaziya",
-      "created": "2026-04-22",
+      "id": "i44nurs",
+      "text": "ежедневник не работает без инета. Фикс",
+      "zone": "personal",
+      "created": "2026-04-23",
       "done": false,
       "plannedDate": null
     }
   ],
   "weekTasks": {
-    "2026-04-22": [
-      {
-        "id": "rmo9qr0uc_42",
-        "text": "В мае юбилей ЛД",
-        "zone": "gimnaziya",
-        "done": false
-      }
-    ]
+    "2026-04-22": []
   },
   "mainTask": {
     "2026-04-20": {
       "text": "Оформить ютуб и формы регистрации + ТГ",
       "zone": "school",
-      "done": false
+      "done": true
     },
     "2026-04-22": {
-      "text": "Сценарий для фидбека коллабы",
+      "text": "Срочно оформить ютуб !",
       "zone": "school",
       "done": false
+    },
+    "2026-04-23": {
+      "text": "написать сценарий + завтра съемка",
+      "zone": "school",
+      "done": true
+    },
+    "2026-04-28": {
+      "text": "Записать обзорную часть для видео ютуб",
+      "zone": "school",
+      "done": false
+    },
+    "2026-05-08": {
+      "text": "Пост в Зарю. Реклама",
+      "zone": "school",
+      "done": true
     }
   }
 };
@@ -708,7 +1013,8 @@ var FREE_W={1:['09:00–18:00 свободный день'],2:['11:30–15:00 о
 var DAY_TAGS={0:{t:'День с женой',c:'rest'},1:{t:'📋 Планирование',c:'plan'},2:{t:'Тяжёлый',c:'heavy'},6:{t:'Тяжёлый',c:'heavy'}};
 var S,toastTimer=null;
 function uid(){return Math.random().toString(36).slice(2,9)}
-function todayStr(){return new Date().toISOString().slice(0,10)}
+function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function todayStr(){return dateKey(new Date())}
 function todayLabel(){var d=new Date();return DAY_FULL[d.getDay()]+', '+d.getDate()+' '+MONTHS_RU2[d.getMonth()]}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(m){var e=document.getElementById('toast');e.textContent=m;e.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){e.classList.remove('show')},2200)}
@@ -790,7 +1096,7 @@ window.addEventListener('pagehide',function(){try{localStorage.setItem('ezhednev
 function cleanupArchive(){
   if(!S.archive||!S.archive.length)return;
   var cutoff=new Date();cutoff.setDate(cutoff.getDate()-61);
-  var cutoffStr=cutoff.toISOString().slice(0,10);
+  var cutoffStr=dateKey(cutoff);
   var before=S.archive.length;
   S.archive=S.archive.filter(function(a){
     if(!a.archivedDate)return true;
@@ -821,7 +1127,6 @@ document.getElementById('zones-grid').innerHTML=h3;renderInboxBadge();renderCalN
 
 // WEEK
 function getWeekDates(){var n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff);var r=[];for(var i=0;i<7;i++){var x=new Date(m);x.setDate(m.getDate()+i);r.push(x)}return r}
-function dateKey(d){return d.toISOString().slice(0,10)}
 function renderWeek(){var dates=getWeekDates(),ds=todayStr(),h='';dates.forEach(function(date){var dk=dateKey(date),dow=date.getDay(),isT=dk===ds,isW=dow===0;var cls='week-day-card'+(isT?' is-today':'')+(isW?' is-weekend':'');var dn=DAY_FULL[dow];dn=dn[0].toUpperCase()+dn.slice(1);var dl=date.getDate()+' '+MONTHS_RU2[date.getMonth()];var tag=DAY_TAGS[dow],tagH=tag?'<span class="week-tag '+tag.c+'">'+tag.t+'</span>':'';
 var fx=FIXED[dow]||[],fxH='';if(fx.length){fxH='<div class="week-fixed">';fx.forEach(function(f){fxH+='<span class="week-fixed-tag" style="background:'+f.c+'15;color:'+f.c+';border-color:'+f.c+'33">'+(f.o?'<i>':'')+f.t+' '+esc(f.l)+(f.o?'</i>':'')+'</span>'});fxH+='</div>'}
 var fr=FREE_W[dow]||[],frH='';if(fr.length){frH='<div class="week-free">';fr.forEach(function(f){frH+='<span class="week-free-tag">🟢 '+esc(f)+'</span>'});frH+='</div>'}
@@ -1011,7 +1316,21 @@ var _sortables=[];
 function initSortables(){_sortables.forEach(function(s){try{s.destroy()}catch(e){}});_sortables=[];if(typeof Sortable==='undefined')return;var te=document.getElementById('today-tasks');if(te&&S.today.length>0)_sortables.push(new Sortable(te,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.today.splice(e.oldIndex,1)[0];S.today.splice(e.newIndex,0,i);save()}}));var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(ze,{handle:'.zone-drag',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zoneOrder.splice(e.oldIndex,1)[0];S.zoneOrder.splice(e.newIndex,0,i);save()}}));(S.zoneOrder||[]).forEach(function(zi){var el=document.getElementById('zone-tasks-'+zi);if(!el||!S.zones[zi]||S.zones[zi].tasks.length<2)return;_sortables.push(new Sortable(el,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zones[zi].tasks.splice(e.oldIndex,1)[0];S.zones[zi].tasks.splice(e.newIndex,0,i);save()}}))})}
 
 load();render();cleanupArchive();
+
+// === ОФЛАЙН + ЗАЩИТА ДАННЫХ ===
+// 1) Сервис-воркер: приложение открывается и работает без интернета.
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('SW не зарегистрирован:',e)});
+  });
+}
+// 2) Просим браузер не вычищать наши данные (защита от истории с «закрыл вкладку — всё пропало»).
+if(navigator.storage&&navigator.storage.persist){
+  navigator.storage.persisted().then(function(already){
+    if(!already)navigator.storage.persist();
+  });
+}
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+<script src="vendor/Sortable.min.js"></script>
 </body>
 </html>
