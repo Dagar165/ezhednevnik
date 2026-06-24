@@ -250,7 +250,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 </style>
 </head>
 <body>
-<div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><div style="position:relative;display:flex;align-items:center;gap:6px;"><button class="hdr-btn" onclick="openCalendar()">📅</button><div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()">🔴 Сегодня<div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()">🔔 Завтра<div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div></div><button class="hdr-btn" onclick="openArchive()">📦</button><button class="hdr-btn" onclick="openBackup()">💾</button><button class="hdr-btn" onclick="newDay()">↺ Новый день</button></div></div>
+<div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><div style="position:relative;display:flex;align-items:center;gap:6px;"><button class="hdr-btn" onclick="openCalendar()">📅</button><div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()">🔴 Сегодня<div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()">🔔 Завтра<div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div></div><button class="hdr-btn" onclick="openArchive()">📦</button><button class="hdr-btn" onclick="openBackup()">💾</button><button class="hdr-btn" id="sync-btn" onclick="openSync()">☁</button><button class="hdr-btn" onclick="newDay()">↺ Новый день</button></div></div>
 <div class="tabs-bar"><button class="tab-btn active" onclick="switchTab('today-tab')">Сегодня</button><button class="tab-btn" onclick="switchTab('week-tab')">Неделя</button><button class="tab-btn" onclick="switchTab('inbox-tab')" id="inbox-tab-btn">Входящие</button><button class="tab-btn" onclick="switchTab('plan-tab')">📋 Планирование</button></div>
 <div class="tab-content active" id="today-tab"><div id="review-banner" class="review-banner">📋 Воскресенье — обнови зоны и спланируй неделю.</div><div class="main-task-section" id="main-task-section"></div><div class="top-row"><div class="top-card today-card"><div class="top-card-header"><span class="top-card-title">Задачи на сегодня</span><span class="today-count" id="today-count"></span></div><div class="top-card-body" id="today-tasks"></div></div><div class="top-card remind-card"><div class="top-card-header"><span class="top-card-title">Ежедневные</span></div><div class="top-card-body" id="remind-tasks"></div><div class="add-remind-row"><input class="add-input" id="inp-remind" placeholder="напоминание..." onkeydown="if(event.key==='Enter')addReminder()"><button class="add-btn" onclick="addReminder()">+</button></div></div></div><div class="zones-grid" id="zones-grid"></div><div class="hint">→ в «Сегодня» · ⊘ отменить · ✕ удалить</div></div>
 <div class="tab-content" id="week-tab"><div id="week-container"></div></div>
@@ -260,6 +260,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
 <div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
 <div class="modal-overlay cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()"><div class="cal-modal"><div class="cal-modal-head"><span class="cal-modal-title">Календарь</span><button class="cal-close" onclick="closeCalendar()">✕</button></div><div class="cal-scroll"><div class="cal-nav"><button class="cal-nav-btn" onclick="calPrev()">‹</button><span class="cal-month-label" id="cal-month-label"></span><button class="cal-nav-btn" onclick="calNext()">›</button></div><div class="cal-grid" id="cal-grid"></div><div class="cal-editor" id="cal-editor" style="display:none"><div class="cal-editor-title" id="cal-editor-title"></div><textarea id="cal-textarea" placeholder="Заметка..."></textarea><div class="cal-editor-btns"><button class="cal-del-btn" id="cal-del-btn" onclick="calDeleteNote()" style="display:none">Удалить</button><button class="cal-save-btn" onclick="calSaveNote()">Сохранить</button></div></div></div></div></div>
+<div class="modal-overlay backup-overlay" id="sync-overlay" onclick="if(event.target===this)closeSync()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">☁ Синхронизация</span><button class="backup-close" onclick="closeSync()">✕</button></div><div class="backup-body">
+<div id="sync-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:6px"></div>
+<div id="sync-logged-out">
+<p class="backup-desc">Войди одной и той же почтой и паролем на всех устройствах — записи будут синхронизироваться автоматически.</p>
+<input class="add-input" id="sync-email" type="email" placeholder="Почта" autocomplete="username" style="width:100%;margin-bottom:6px">
+<input class="add-input" id="sync-pass" type="password" placeholder="Пароль (минимум 6 символов)" autocomplete="current-password" style="width:100%;margin-bottom:8px" onkeydown="if(event.key==='Enter')syncLogin()">
+<button class="backup-btn export" onclick="syncLogin()">Войти</button>
+<button class="backup-btn import" style="margin-top:6px" onclick="syncRegister()">Создать аккаунт (первый раз)</button>
+<p class="backup-info" style="margin-top:8px">Первый раз — нажми «Создать аккаунт». Потом на других устройствах — «Войти».</p>
+</div>
+<div id="sync-logged-in" style="display:none">
+<p class="backup-desc">Вы вошли как <strong id="sync-email-label"></strong>.<br>Данные синхронизируются автоматически.</p>
+<button class="backup-btn import" onclick="syncLogout()">Выйти</button>
+</div>
+</div></div></div>
 <div class="toast" id="toast"></div>
 <div id="save-indicator" style="position:fixed;top:14px;right:14px;font-size:11px;color:#27ae60;opacity:0;transition:opacity 0.3s;z-index:60;pointer-events:none;background:#e8f5ee;padding:3px 10px;border-radius:6px;">✓ сохранено</div>
 
@@ -597,5 +612,72 @@ if(navigator.storage&&navigator.storage.persist){
 }
 </script>
 <script src="vendor/Sortable.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+// ===== ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (Firebase) =====
+(function(){
+var FIREBASE_CONFIG={
+  apiKey:"AIzaSyDmHc1ryNMBtAkX2bMeTZntENrtK7iVlkw",
+  authDomain:"ezhednevnik-d394c.firebaseapp.com",
+  projectId:"ezhednevnik-d394c",
+  storageBucket:"ezhednevnik-d394c.firebasestorage.app",
+  messagingSenderId:"678821267264",
+  appId:"1:678821267264:web:6862faf5fea16eb8ae5ca5"
+};
+var _db=null,_user=null,_unsub=null,_applyingRemote=false,_cloudTimer=null;
+
+function setSyncBtn(state){var b=document.getElementById('sync-btn');if(!b)return;b.textContent=state==='on'?'☁✓':'☁';b.style.color=state==='on'?'#1D9E75':'';}
+function setSyncStatus(txt,kind){var el=document.getElementById('sync-status-line');if(!el)return;var c={ok:['#e8f5ee','#1D7A44'],warn:['#fffbe5','#7a5c00'],err:['#fdecec','#8b2020'],info:['#eef4ff','#3a5c8a']}[kind||'info'];el.style.background=c[0];el.style.color=c[1];el.textContent=txt;}
+function showLoggedIn(email){document.getElementById('sync-logged-out').style.display='none';document.getElementById('sync-logged-in').style.display='block';document.getElementById('sync-email-label').textContent=email||'';setSyncStatus('✓ Синхронизация включена','ok');setSyncBtn('on');}
+function showLoggedOut(){document.getElementById('sync-logged-out').style.display='block';document.getElementById('sync-logged-in').style.display='none';setSyncStatus('Не подключено. Войди, чтобы синхронизировать устройства.','info');setSyncBtn('off');}
+
+window.openSync=function(){document.getElementById('sync-overlay').classList.add('open');if(_user)showLoggedIn(_user.email);else showLoggedOut();};
+window.closeSync=function(){document.getElementById('sync-overlay').classList.remove('open');};
+
+function mapErr(e){var m=(e&&e.code)||'';
+  if(m.indexOf('email-already-in-use')>=0)return 'Такой аккаунт уже есть — нажми «Войти».';
+  if(m.indexOf('invalid-email')>=0)return 'Почта введена неправильно.';
+  if(m.indexOf('weak-password')>=0)return 'Пароль слишком простой (минимум 6 символов).';
+  if(m.indexOf('wrong-password')>=0||m.indexOf('invalid-credential')>=0)return 'Неверная почта или пароль.';
+  if(m.indexOf('user-not-found')>=0)return 'Аккаунт не найден — нажми «Создать аккаунт».';
+  if(m.indexOf('network')>=0)return 'Нет интернета — попробуй позже.';
+  return (e&&e.message)||'Ошибка';}
+window.syncLogin=function(){var em=(document.getElementById('sync-email').value||'').trim(),pw=document.getElementById('sync-pass').value;if(!em||!pw){setSyncStatus('Введи почту и пароль','warn');return;}setSyncStatus('Вхожу…','info');firebase.auth().signInWithEmailAndPassword(em,pw).then(function(){document.getElementById('sync-pass').value='';}).catch(function(e){setSyncStatus(mapErr(e),'err');});};
+window.syncRegister=function(){var em=(document.getElementById('sync-email').value||'').trim(),pw=document.getElementById('sync-pass').value;if(!em||!pw){setSyncStatus('Введи почту и пароль','warn');return;}setSyncStatus('Создаю аккаунт…','info');firebase.auth().createUserWithEmailAndPassword(em,pw).then(function(){document.getElementById('sync-pass').value='';}).catch(function(e){setSyncStatus(mapErr(e),'err');});};
+window.syncLogout=function(){if(confirm('Выйти? Локальные данные на этом устройстве останутся.')){firebase.auth().signOut();}};
+
+function adoptRemote(remote){_applyingRemote=true;S=remote;patchState(S);try{localStorage.setItem('ezhednevnik-v2',JSON.stringify(S));}catch(e){}render();_applyingRemote=false;}
+function cloudPush(){if(!_user||!_db||_applyingRemote)return;if(_cloudTimer)clearTimeout(_cloudTimer);_cloudTimer=setTimeout(function(){try{if(!S._updatedAt)S._updatedAt=Date.now();_db.collection('users').doc(_user.uid).set({state:JSON.stringify(S),updatedAt:S._updatedAt},{merge:true});}catch(e){}},700);}
+function subscribeCloud(){
+  if(_unsub){_unsub();_unsub=null;}
+  var firstSnap=true,everSynced=!!localStorage.getItem('ez-synced-once');
+  _unsub=_db.collection('users').doc(_user.uid).onSnapshot(function(doc){
+    if(doc.metadata.hasPendingWrites)return;
+    var has=doc.exists&&doc.data()&&doc.data().state;
+    if(has){
+      var d=doc.data(),remote=null;try{remote=JSON.parse(d.state);}catch(e){}
+      if(remote){var ru=d.updatedAt||0,lu=(S&&S._updatedAt)||0;
+        if((firstSnap&&!everSynced)||ru>lu){adoptRemote(remote);if(!firstSnap)toast('☁ обновлено');}
+        else if(lu>ru){cloudPush();}
+      }
+    } else if(firstSnap&&!everSynced){cloudPush();}
+    if(firstSnap){localStorage.setItem('ez-synced-once','1');firstSnap=false;}
+  },function(err){setSyncStatus('Ошибка синхронизации: '+((err&&err.code)||(err&&err.message)||''),'err');});
+}
+function hookSave(){if(typeof save!=='function')return;var orig=save;save=function(){if(!_applyingRemote){S._updatedAt=Date.now();}orig();cloudPush();};}
+function cloudInit(){
+  if(typeof firebase==='undefined'){setSyncBtn('off');return;}
+  try{firebase.initializeApp(FIREBASE_CONFIG);}catch(e){}
+  _db=firebase.firestore();
+  try{_db.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
+  hookSave();
+  firebase.auth().onAuthStateChanged(function(u){_user=u;if(u){showLoggedIn(u.email);subscribeCloud();}else{if(_unsub){_unsub();_unsub=null;}showLoggedOut();}});
+}
+setSyncBtn('off');
+if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOMContentLoaded',cloudInit);
+})();
+</script>
 </body>
 </html>

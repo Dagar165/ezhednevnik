@@ -1,11 +1,11 @@
 /* Сервис-воркер ежедневника.
    Задача: приложение должно открываться и работать без интернета.
-   - При установке кэшируем «оболочку» приложения (html, иконки, библиотеку перетаскивания).
+   - При установке кэшируем «оболочку» приложения (html, иконки, библиотеки).
    - HTML отдаём по схеме «сеть, а если её нет — кэш»: так в онлайне приходят обновления,
      а в офлайне всё равно открывается последняя сохранённая версия.
-   - Остальное (иконки, Sortable) отдаём из кэша мгновенно. */
+   - Остальное (иконки, Sortable, Firebase SDK) отдаём из кэша мгновенно. */
 
-var CACHE = 'ezhednevnik-v1';
+var CACHE = 'ezhednevnik-v2';
 var ASSETS = [
   './',
   './index.html',
@@ -14,11 +14,23 @@ var ASSETS = [
   './icons/icon.svg',
   './icons/icon-maskable.svg'
 ];
+// Firebase SDK с CDN — кэшируем отдельно (best-effort), чтобы синхронизация работала офлайн.
+var EXTRA = [
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js'
+];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); })
-      .then(function () { return self.skipWaiting(); })
+    caches.open(CACHE).then(function (c) {
+      // Свои файлы — обязательны (атомарно). Firebase — по возможности, ошибки не валят установку.
+      return c.addAll(ASSETS).then(function () {
+        return Promise.all(EXTRA.map(function (u) {
+          return c.add(new Request(u, { mode: 'cors' })).catch(function () {});
+        }));
+      });
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 
@@ -34,8 +46,13 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   var req = e.request;
-  if (req.method !== 'GET') return;                       // данные пишутся локально, не трогаем
-  if (new URL(req.url).origin !== self.location.origin) return; // чужие домены не кэшируем
+  if (req.method !== 'GET') return;                 // запись данных не трогаем
+  var url = new URL(req.url);
+  var sameOrigin = url.origin === self.location.origin;
+  var isFirebaseSdk = url.hostname === 'www.gstatic.com' && url.pathname.indexOf('/firebasejs/') === 0;
+
+  // Запросы данных к Firestore/Auth НЕ кэшируем — их офлайн-режим Firebase делает сам.
+  if (!sameOrigin && !isFirebaseSdk) return;
 
   var isHTML = req.mode === 'navigate' ||
     (req.headers.get('accept') || '').indexOf('text/html') !== -1;
@@ -54,7 +71,7 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // Статика: сначала кэш, потом сеть (и докладываем в кэш).
+  // Статика и Firebase SDK: сначала кэш, потом сеть (и докладываем в кэш).
   e.respondWith(
     caches.match(req).then(function (cached) {
       return cached || fetch(req).then(function (res) {
