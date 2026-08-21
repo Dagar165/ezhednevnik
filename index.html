@@ -521,7 +521,11 @@ function renderInbox(){
       var opts='<option value="" disabled selected>→ день</option>';
       dates.forEach(function(d){opts+='<option value="'+dateKey(d)+'">'+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
       var vWhy=item.vdetail?'<div class="inbox-why">'+esc(item.vdetail)+'</div>':'';
-      return '<div class="inbox-item'+vCls+'">'+checkH+'<div class="inbox-item-text"'+vTitle+'>'+esc(item.text)+vWhy+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions">'+vBtn+'<select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+      // Нерасшифрованную заметку можно послушать своими ушами. Пока этой кнопки
+      // не было, сохранённый звук лежал мёртвым грузом: и места занимал, и толку ноль.
+      var vPlay=(item.voice&&window.voiceHasAudio&&window.voiceHasAudio(item.id))
+        ?'<button class="z-btn in-t" title="Послушать запись" onclick="voicePlay(\''+item.id+'\')">'+(window.voicePlayingId===item.id?'⏸':'▶')+'</button>':'';
+      return '<div class="inbox-item'+vCls+'">'+checkH+'<div class="inbox-item-text"'+vTitle+'>'+esc(item.text)+vWhy+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions">'+vPlay+vBtn+'<select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
     }
   }
   var h='';
@@ -542,7 +546,7 @@ function addInbox(){var i=document.getElementById('inbox-input'),z=document.getE
 function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;if(item.voice&&window.voiceForget)window.voiceForget(id);S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
 function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();var d=new Date(dk+'T12:00:00');var lbl=DAY_SHORT[d.getDay()]+' '+d.getDate();toast(wasPlanned?'Перенесено на '+lbl:'→ '+lbl+' · в «Запланировано» ниже');setTimeout(function(){var el=document.querySelector('.inbox-item.planned');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'})},150)}
 function unplanInbox(iid){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item)return;item.plannedDate=null;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Снято с дня')}
-function toggleInboxDone(iid){S.inbox.forEach(function(x){if(x.id===iid)x.done=!x.done});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek()}
+function toggleInboxDone(iid){S.inbox.forEach(function(x){if(x.id===iid){x.done=!x.done;if(x.done&&x.voice&&window.voiceForget)window.voiceForget(iid)}});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek()}
 
 // ZONES
 function inToday(id){for(var i=0;i<S.today.length;i++)if(S.today[i].sourceId===id)return true;return false}
@@ -802,6 +806,40 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   var MAX_TRIES = 5;
   var BACKOFF = [4000, 15000, 60000, 300000, 900000];   // 4с, 15с, 1м, 5м, 15м
   var SILENCE = 0.005;                                  // ниже этого микрофон просто молчал
+  var KEEP_MS = 7 * 24 * 3600 * 1000;                   // звук живёт неделю, дальше не нужен
+
+  // Готовые адреса для кнопки ▶. Держим их заранее: iPhone не даёт включить
+  // звук, если между касанием и play() успело вклиниться чтение из базы.
+  var urls = {}, player = null;
+  function primeUrls(){
+    vall().then(function(list){
+      var seen = {}, changed = false;
+      list.forEach(function(r){
+        seen[r.id] = 1;
+        if (!urls[r.id] && r.blob){ try { urls[r.id] = URL.createObjectURL(r.blob); changed = true; } catch(e){} }
+      });
+      Object.keys(urls).forEach(function(k){
+        if (!seen[k]){ try { URL.revokeObjectURL(urls[k]); } catch(e){} delete urls[k]; changed = true; }
+      });
+      if (changed){ try { renderInbox(); } catch(e){} }
+    });
+  }
+  window.voiceHasAudio = function(id){ return !!urls[id]; };
+  window.voicePlayingId = null;
+  window.voicePlay = function(id){
+    var was = window.voicePlayingId;
+    if (player){ try { player.pause(); } catch(e){} player = null; window.voicePlayingId = null; }
+    if (was === id){ try { renderInbox(); } catch(e){} return; }   // повторное нажатие - стоп
+    if (!urls[id]){ toast('Звук этой записи здесь не сохранился'); return; }
+    player = new Audio(urls[id]);
+    window.voicePlayingId = id;
+    player.onended = player.onerror = function(){
+      player = null; window.voicePlayingId = null; try { renderInbox(); } catch(e){}
+    };
+    var pr = player.play();
+    if (pr && pr.catch) pr.catch(function(){ toast('Не получилось включить звук'); });
+    try { renderInbox(); } catch(e){}
+  };
 
   var rec = null, chunks = [], stream = null, tick = null, t0 = 0;
   var sending = false, pumpTimer = null;
@@ -903,6 +941,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   function redraw(){
     save();
     try { renderInbox(); renderInboxBadge(); } catch(e){}
+    primeUrls();
     idle();
   }
   function mark(id, state, text, detail){
@@ -1165,7 +1204,11 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       vput(r).then(pump);
     });
   };
-  window.voiceForget = function(id){ vdel(id); delete mem[id]; };
+  window.voiceForget = function(id){
+    vdel(id); delete mem[id];
+    if (urls[id]){ try { URL.revokeObjectURL(urls[id]); } catch(e){} delete urls[id]; }
+    if (window.voicePlayingId === id && player){ try { player.pause(); } catch(e){} player = null; window.voicePlayingId = null; }
+  };
 
   // ---- подъём после перезагрузки ----
   vall().then(function(list){
@@ -1179,9 +1222,24 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
         x.text = '❓ голосовая осталась на другом устройстве (' + hhmm(x.createdAt) + ')';
       }
     });
-    // Звук есть, а строки нет - строку удалили руками. Звук больше не нужен.
-    list.forEach(function(r){ if (!item(r.id)) vdel(r.id); });
+    list.forEach(function(r){
+      // Звук есть, а строки нет - строку удалили руками. Звук больше не нужен.
+      if (!item(r.id)){ vdel(r.id); return; }
+      // Через неделю звук уходит в любом случае: нерасшифрованные записи иначе
+      // копились бы вечно по 2 МБ на минуту речи. Сама строка остаётся.
+      if (Date.now() - (r.ts || 0) > KEEP_MS){
+        vdel(r.id);
+        var it = item(r.id);
+        if (it && it.voice){
+          it.vstate = 'dead';
+          it.vdetail = 'звук удалён — хранится неделю';
+          // Текст обещал повтор, а повторять уже нечего. Не врём строкой.
+          it.text = '❓ голосовая так и не расшифровалась (' + hhmm(r.ts) + ')';
+        }
+      }
+    });
     try { renderInbox(); renderInboxBadge(); } catch(e){}
+    primeUrls();
     pump();
   });
 
