@@ -3,15 +3,14 @@
    - При установке кэшируем «оболочку» приложения (html, иконки, библиотеки, Firebase SDK).
    - HTML отдаём по схеме «сеть, а если её нет — кэш»: в онлайне приходят обновления,
      в офлайне открывается последняя сохранённая версия.
-   - Остальное (иконки, Sortable, Firebase SDK, sync.js) отдаём из кэша мгновенно.
+   - Остальное (иконки, Sortable, Firebase SDK) отдаём из кэша мгновенно.
    - Запросы данных к Firestore/Auth НЕ кэшируем — их офлайн-режим Firebase делает сам. */
 
-var CACHE = 'ezhednevnik-v3';
+var CACHE = 'ezhednevnik-v4';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './sync.js',
   './vendor/Sortable.min.js',
   './vendor/firebase-app-compat.js',
   './vendor/firebase-auth-compat.js',
