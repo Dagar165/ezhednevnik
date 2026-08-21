@@ -6,7 +6,7 @@
    - Остальное (иконки, Sortable, Firebase SDK) отдаём из кэша мгновенно.
    - Запросы данных к Firestore/Auth НЕ кэшируем — их офлайн-режим Firebase делает сам. */
 
-var CACHE = 'ezhednevnik-v4';
+var CACHE = 'ezhednevnik-v5';
 var ASSETS = [
   './',
   './index.html',

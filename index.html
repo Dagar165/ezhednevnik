@@ -163,6 +163,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .inbox-item { background: #fff; border-radius: 10px; border: 0.5px solid #e8e6e2; padding: 10px 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inbox-item.planned { background: #f7f5f0; opacity: 0.75; border-style: dashed; }
 .inbox-item.done { opacity: 0.5; }
+.inbox-item.voice-work { border-color: #f0cf94; background: #fffdf7; }
+.inbox-item.voice-work .inbox-item-text { color: #8a6a1a; }
+.inbox-item.voice-fail { border-color: #f0c0b8; background: #fdf7f6; }
+.inbox-item.voice-dead { border-color: #ddd; background: #f7f7f5; }
+.inbox-item.voice-dead .inbox-item-text { color: #999; }
 .inbox-item .small-check { flex-shrink: 0; }
 .inbox-item-text { flex: 1; font-size: 13px; min-width: 120px; }
 .inbox-item-text.done { text-decoration: line-through; color: #bbb; }
@@ -310,12 +315,22 @@ function idbOpen(cb){try{var req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=f
 function idbSave(data){idbOpen(function(db){if(!db)return;try{var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(data,DB_KEY)}catch(e){}})}
 function idbLoad(cb){idbOpen(function(db){if(!db){cb(null);return}try{var tx=db.transaction(DB_STORE,'readonly');var req=tx.objectStore(DB_STORE).get(DB_KEY);req.onsuccess=function(){cb(req.result||null)};req.onerror=function(){cb(null)}}catch(e){cb(null)}})}
 
-function patchState(s){if(!s)return;if(!s.archive)s.archive=[];if(!s.reminders)s.reminders=DEFAULT_REMINDERS.map(function(t){return{id:uid(),text:t,done:false}});if(!s.zoneOrder)s.zoneOrder=ZONE_DEFS.map(function(d){return d.id});if(!s.calendar)s.calendar={};if(!s.inbox)s.inbox=[];if(!s.weekTasks)s.weekTasks={};if(!s.mainTask)s.mainTask={};s.inbox.forEach(function(x){if(typeof x.plannedDate==='undefined')x.plannedDate=null});ZONE_DEFS.forEach(function(d){if(!s.zones[d.id])s.zones[d.id]={tasks:[]};if(s.zoneOrder.indexOf(d.id)===-1)s.zoneOrder.push(d.id)})}
+function patchState(s){if(!s)return;if(!s.zones||typeof s.zones!=='object')s.zones={};if(!s.archive)s.archive=[];if(!s.reminders)s.reminders=DEFAULT_REMINDERS.map(function(t){return{id:uid(),text:t,done:false}});if(!s.zoneOrder)s.zoneOrder=ZONE_DEFS.map(function(d){return d.id});if(!s.calendar)s.calendar={};if(!s.inbox)s.inbox=[];if(!s.weekTasks)s.weekTasks={};if(!s.mainTask)s.mainTask={};s.inbox.forEach(function(x){if(typeof x.plannedDate==='undefined')x.plannedDate=null});ZONE_DEFS.forEach(function(d){if(!s.zones[d.id])s.zones[d.id]={tasks:[]};if(s.zoneOrder.indexOf(d.id)===-1)s.zoneOrder.push(d.id)})}
 
 function load(){
   var loaded=false;
   // 1) Try localStorage
-  try{var r=localStorage.getItem('ezhednevnik-v2');if(!r)r=localStorage.getItem('ezhednevnik-v1');if(r){S=JSON.parse(r);patchState(S);loaded=true}}catch(e){}
+  var raw=null;try{raw=localStorage.getItem('ezhednevnik-v2');if(!raw)raw=localStorage.getItem('ezhednevnik-v1')}catch(e){}
+  if(raw){
+    try{S=JSON.parse(raw);patchState(S);loaded=true}
+    catch(e){
+      // Данные есть, но прочитать не вышло. Затирать их пустым ежедневником
+      // нельзя ни при каких обстоятельствах: первый же save() сделал бы это
+      // молча и навсегда. Откладываем копию и говорим вслух.
+      try{localStorage.setItem('ez-rescue-'+Date.now(),raw)}catch(e2){}
+      setTimeout(function(){alert('Сохранённые данные не прочитались. Они НЕ стёрты — копия отложена рядом.\n\nОткрой 💾 и восстанови из последнего бэкапа. До этого ничего не удаляй.')},0);
+    }
+  }
   // 2) Try URL hash (bookmark with data)
   if(!loaded){try{var h=location.hash.slice(1);if(h.length>10){var decoded=decodeURIComponent(h);S=JSON.parse(decoded);patchState(S);loaded=true;toast('Данные восстановлены из закладки')}}catch(e){}}
   // 3) One-shot embedded backup: apply ONCE per BACKUP_VERSION, even if localStorage has data
@@ -327,17 +342,41 @@ function load(){
   }
   // 4) Fallback to fresh state
   if(!loaded) S=initState();
-  // 5) Also try IndexedDB async (will re-render if found and current state is empty)
-  idbLoad(function(data){if(data&&S.today.length===0&&S.inbox.length===0&&Object.keys(S.mainTask).length===0){try{var parsed=typeof data==='string'?JSON.parse(data):data;if(parsed&&parsed.zones&&(parsed.today.length>0||parsed.inbox.length>0||Object.keys(parsed.mainTask||{}).length>0)){S=parsed;patchState(S);save();render();toast('Данные восстановлены из резервного хранилища')}}catch(e){}}});
+  // 5) Резервная копия в IndexedDB. Берём её, если она СВЕЖЕЕ найденной или если
+  //    найденная пуста. Раньше проверялась только пустота — и «непустой, но
+  //    вчерашний» localStorage побеждал свежую копию при сбое записи.
+  idbLoad(function(data){
+    try{
+      var parsed=typeof data==='string'?JSON.parse(data):data;
+      if(!parsed||!parsed.zones)return;
+      var mine=(S&&S._updatedAt)||0,theirs=parsed._updatedAt||0;
+      var empty=!S.today.length&&!S.inbox.length&&!Object.keys(S.mainTask||{}).length;
+      var theyHave=(parsed.today||[]).length||(parsed.inbox||[]).length||Object.keys(parsed.mainTask||{}).length;
+      if(theirs>mine||(empty&&theyHave)){S=parsed;patchState(S);save();render();toast('Данные восстановлены из резервного хранилища')}
+    }catch(e){}
+  });
 }
 
-var _saveTimeout=null;
+var _saveTimeout=null,_lsBroken=false;
 function save(){
-  // localStorage
-  try{localStorage.setItem('ezhednevnik-v2',JSON.stringify(S))}catch(e){}
-  // IndexedDB (async, debounced)
-  if(_saveTimeout)clearTimeout(_saveTimeout);
-  _saveTimeout=setTimeout(function(){idbSave(JSON.stringify(S))},1000);
+  // Один штамп времени на все хранилища: по нему облако и резервная копия
+  // решают, чья версия свежее. Раньше его ставил только код синхронизации —
+  // если Firebase не загрузился, штампа не было вообще.
+  S._updatedAt=Date.now();
+  var json=null;try{json=JSON.stringify(S)}catch(e){}
+  if(json!==null){
+    // localStorage
+    try{localStorage.setItem('ezhednevnik-v2',json);_lsBroken=false}
+    catch(e){
+      // Молчать здесь нельзя. Раньше переполненная память браузера означала,
+      // что «✓ сохранено» мигает, а на диск не легло ничего — и назавтра
+      // открывался вчерашний ежедневник.
+      if(!_lsBroken){_lsBroken=true;setTimeout(function(){alert('Не получается сохранить в память браузера — скорее всего она переполнена.\n\nСделай бэкап (💾) прямо сейчас и почисти архив, иначе новые записи начнут пропадать.')},0)}
+    }
+    // IndexedDB (async, debounced)
+    if(_saveTimeout)clearTimeout(_saveTimeout);
+    _saveTimeout=setTimeout(function(){idbSave(json)},1000);
+  } else toast('⚠️ Данные не удалось подготовить к сохранению');
   // Update URL hash for bookmarking (debounced to avoid lag)
   _updateHashTimer&&clearTimeout(_updateHashTimer);
   _updateHashTimer=setTimeout(clearUrlHash,3000);
@@ -466,6 +505,11 @@ function renderInbox(){
     var zn=null;ZONE_DEFS.forEach(function(z){if(z.id===item.zone)zn=z});
     var zH=zn?'<span class="inbox-item-zone" style="background:'+zn.color+'15;color:'+zn.color+'">'+esc(zn.name)+'</span>':'';
     var checkH='<div class="small-check'+(item.done?' done':'')+'" onclick="toggleInboxDone(\''+item.id+'\')"></div>';
+    // Голосовая запись, которая ещё не доехала. Строка уже здесь - её видно и
+    // её можно переспросить; раньше вместо неё была всплывашка на две секунды.
+    var vCls=item.voice?' voice-'+(item.vstate||'work'):'';
+    var vTitle=item.vdetail?' title="'+esc(item.vdetail)+'"':'';
+    var vBtn=item.voice?'<button class="z-btn in-t" title="Расшифровать ещё раз'+(item.vdetail?': '+esc(item.vdetail):'')+'" onclick="voiceRetry(\''+item.id+'\')">\u21BB</button>':'';
     if(isPlanned){
       var pd=new Date(item.plannedDate+'T12:00:00');
       var label=DAY_SHORT[pd.getDay()]+' '+pd.getDate();
@@ -475,7 +519,7 @@ function renderInbox(){
     }else{
       var opts='<option value="" disabled selected>→ день</option>';
       dates.forEach(function(d){opts+='<option value="'+dateKey(d)+'">'+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
-      return '<div class="inbox-item">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+      return '<div class="inbox-item'+vCls+'">'+checkH+'<div class="inbox-item-text"'+vTitle+'>'+esc(item.text)+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions">'+vBtn+'<select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
     }
   }
   var h='';
@@ -493,7 +537,7 @@ function renderInbox(){
 }
 function renderInboxBadge(){var unplan=S.inbox.filter(function(x){return!x.done&&!x.plannedDate}).length;var plan=S.inbox.filter(function(x){return!x.done&&x.plannedDate}).length;var txt='Входящие';var badge='';if(unplan&&plan)badge='<span class="tab-badge">'+unplan+'+'+plan+'</span>';else if(unplan)badge='<span class="tab-badge">'+unplan+'</span>';else if(plan)badge='<span class="tab-badge" style="background:#3a5c8a">'+plan+'</span>';document.getElementById('inbox-tab-btn').innerHTML=txt+badge}
 function addInbox(){var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();if(!t)return;S.inbox.push({id:uid(),text:t,zone:z.value||null,created:todayStr(),createdAt:Date.now(),done:false,plannedDate:null});i.value='';z.value='';save();renderInbox();renderInboxBadge();toast('Записано')}
-function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
+function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;if(item.voice&&window.voiceForget)window.voiceForget(id);S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
 function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();var d=new Date(dk+'T12:00:00');var lbl=DAY_SHORT[d.getDay()]+' '+d.getDate();toast(wasPlanned?'Перенесено на '+lbl:'→ '+lbl+' · в «Запланировано» ниже');setTimeout(function(){var el=document.querySelector('.inbox-item.planned');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'})},150)}
 function unplanInbox(iid){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item)return;item.plannedDate=null;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Снято с дня')}
 function toggleInboxDone(iid){S.inbox.forEach(function(x){if(x.id===iid)x.done=!x.done});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek()}
@@ -683,7 +727,23 @@ window.syncRegister=function(){var em=(document.getElementById('sync-email').val
 window.syncLogout=function(){if(confirm('Выйти? Локальные данные на этом устройстве останутся.')){firebase.auth().signOut();}};
 
 function adoptRemote(remote){_applyingRemote=true;S=remote;patchState(S);try{localStorage.setItem('ezhednevnik-v2',JSON.stringify(S));}catch(e){}render();_applyingRemote=false;}
-function cloudPush(){if(!_user||!_db||_applyingRemote)return;if(_cloudTimer)clearTimeout(_cloudTimer);_cloudTimer=setTimeout(function(){try{if(!S._updatedAt)S._updatedAt=Date.now();_db.collection('users').doc(_user.uid).set({state:JSON.stringify(S),updatedAt:S._updatedAt},{merge:true});}catch(e){}},700);}
+function cloudPush(){if(!_user||!_db||_applyingRemote)return;if(_cloudTimer)clearTimeout(_cloudTimer);_cloudTimer=setTimeout(function(){
+  try{
+    if(!S._updatedAt)S._updatedAt=Date.now();
+    var json=JSON.stringify(S);
+    // У документа Firestore жёсткий предел 1 МБ. Дойдя до него, запись начнёт
+    // отказывать — и без этой проверки отказ был бы не виден вообще.
+    if(json.length>900000){setSyncStatus('Ежедневник не влезает в облако ('+Math.round(json.length/1024)+' КБ из 1000). Почисти архив.','err');return;}
+    _db.collection('users').doc(_user.uid).set({state:json,updatedAt:S._updatedAt},{merge:true})
+      .then(function(){setSyncStatus('✓ Синхронизация включена','ok');setSyncBtn('on');})
+      .catch(function(e){
+        // Раньше отказ облака проглатывался: значок оставался зелёным, а данные
+        // на других устройствах не появлялись.
+        setSyncStatus('☁ Облако не приняло данные: '+((e&&e.code)||(e&&e.message)||'')+'. На этом устройстве всё цело.','err');
+        setSyncBtn('off');toast('☁ не сохранилось в облако');
+      });
+  }catch(e){setSyncStatus('☁ Не удалось отправить в облако: '+e.message,'err');}
+},700);}
 function subscribeCloud(){
   if(_unsub){_unsub();_unsub=null;}
   var firstSnap=true,everSynced=!!localStorage.getItem('ez-synced-once');
@@ -700,7 +760,7 @@ function subscribeCloud(){
     if(firstSnap){localStorage.setItem('ez-synced-once','1');firstSnap=false;}
   },function(err){setSyncStatus('Ошибка синхронизации: '+((err&&err.code)||(err&&err.message)||''),'err');});
 }
-function hookSave(){if(typeof save!=='function')return;var orig=save;save=function(){if(!_applyingRemote){S._updatedAt=Date.now();}orig();cloudPush();};}
+function hookSave(){if(typeof save!=='function')return;var orig=save;save=function(){orig();cloudPush();};}
 function cloudInit(){
   if(typeof firebase==='undefined'){setSyncBtn('off');return;}
   try{firebase.initializeApp(FIREBASE_CONFIG);}catch(e){}
@@ -714,19 +774,40 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 })();
 </script>
 <script>
-/* Голосовая заметка -> Входящие. Добавлено 21.08.2026.
-   Откат: git revert этого коммита либо git reset --hard backup-2026-08-21. */
+/* Голосовая заметка -> Входящие. Переписано 22.08.2026 по итогам аудита.
+   Откат: git revert этого коммита либо git reset --hard backup-2026-08-21.
+
+   Главное правило: сказанное вслух не должно пропасть НИКОГДА.
+   Поэтому порядок такой:
+     1) отпустил кнопку -> звук лёг в IndexedDB;
+     2) сразу же во «Входящих» появилась строка «расшифровывается…»;
+     3) только потом пошёл запрос к серверу.
+   Упал запрос, сел интернет, закрылась вкладка, разрядился телефон - строка и
+   звук уже на месте, и очередь доберёт их сама.
+
+   Что было сломано до переписывания:
+     - после неудачи кнопка микрофона превращалась в «повторить», и НОВУЮ заметку
+       записать было нельзя, пока старая не пройдёт. Отказ фильтра = микрофон
+       заблокирован навсегда;
+     - вторая неудачная запись писалась в базу под ключом первой и затирала её;
+     - повтор был один на всё приложение и только при загрузке страницы. */
 (function(){
-  // Адрес функции расшифровки на Vercel. Нужен только когда приложение открыто с github.io.
-  // Внутри самого деплоя Vercel адрес берётся автоматически.
+  // Адрес функции расшифровки. Внутри деплоя Vercel берётся сам; для github.io
+  // его надо задать один раз - приложение спросит и запомнит.
   var VERCEL_API = '';
 
-  var MAX_SEC = 120, RATE = 16000;
+  var MAX_SEC = 120, RATE = 16000, MAX_BODY = 4200000;
+  var MAX_TRIES = 5;
+  var BACKOFF = [4000, 15000, 60000, 300000, 900000];   // 4с, 15с, 1м, 5м, 15м
+  var SILENCE = 0.005;                                  // ниже этого микрофон просто молчал
+
   var rec = null, chunks = [], stream = null, tick = null, t0 = 0;
-  // pendingId - пометка во Входящих, voiceKey - ключ звука в базе.
-  // Раздельно: пометку можно удалить руками, звук от этого не должен стать
-  // невидимым и молча перезапрашиваться.
-  var busy = false, lastWav = null, pendingId = null, voiceKey = null, started = 0, tries = 0;
+  var sending = false, pumpTimer = null;
+  // Страховка на текущую сессию. Если IndexedDB недоступна (приватный режим
+  // Safari, переполненный диск), очередь всё равно работает - просто не
+  // переживёт перезагрузку. Без этого строка «расшифровывается…» висела бы
+  // вечно, а звук уходил в никуда.
+  var mem = {};
 
   function paint(cls, label, title){
     var b = document.getElementById('mic-btn'); if (!b) return;
@@ -734,11 +815,32 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     b.textContent = label;
     b.title = title || '';
   }
-  function idle(){ paint('', '\uD83C\uDFA4', 'Записать голосом'); }
+  function pendingCount(){
+    return S.inbox.filter(function(x){ return x.voice && !x.done; }).length;
+  }
+  function idle(){
+    if (rec && rec.state === 'recording') return;
+    var n = pendingCount();
+    if (sending) paint('mic-busy', '🎤', 'Расшифровываю' + (n > 1 ? ', в очереди ' + n : '') + ' - записывать можно дальше');
+    else if (n) paint('mic-err', '🎤', 'Незаконченных записей: ' + n + ' - записывать можно дальше');
+    else paint('', '🎤', 'Записать голосом');
+  }
 
   function apiUrl(){
+    var custom = '';
+    try { custom = localStorage.getItem('ez-api-url') || ''; } catch(e){}
+    if (custom) return custom;
     if (location.hostname.indexOf('github.io') >= 0) return VERCEL_API;
     return location.origin + '/api/note';
+  }
+  function askApiUrl(){
+    var v = prompt('Адрес расшифровки не задан.\n\nVercel -> проект -> Domains, скопируй адрес\nи допиши в конце /api/note\n\nНапример: https://ezhednevnik-927q.vercel.app/api/note', '');
+    if (!v) return '';
+    v = v.trim().replace(/\/+$/, '');
+    if (v.indexOf('/api/note') < 0) v += '/api/note';
+    try { localStorage.setItem('ez-api-url', v); } catch(e){}
+    toast('Адрес сохранён');
+    return v;
   }
   function zoneName(id){
     var n = null;
@@ -747,6 +849,66 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   }
   function dropTracks(){
     if (stream){ stream.getTracks().forEach(function(x){ x.stop(); }); stream = null; }
+  }
+  function hhmm(ts){
+    var d = new Date(ts || Date.now());
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  // ---- хранилище звука ----
+  // Отдельная база, НЕ ezhednevnik-db: у той версия 1, и поднятие версии
+  // сломало бы открытие базы самим приложением.
+  var VDB = 'ezhednevnik-voice', VSTORE = 'pending';
+  function vopen(){
+    return new Promise(function(res, rej){
+      if (!window.indexedDB) return rej(new Error('нет IndexedDB'));
+      var r = indexedDB.open(VDB, 1);
+      r.onupgradeneeded = function(){
+        if (!r.result.objectStoreNames.contains(VSTORE)) r.result.createObjectStore(VSTORE, { keyPath: 'id' });
+      };
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function vtx(mode, fn){
+    return vopen().then(function(db){
+      return new Promise(function(res){
+        var out, tx = db.transaction(VSTORE, mode);
+        out = fn(tx.objectStore(VSTORE));
+        tx.oncomplete = function(){ res(out ? out.result : null); };
+        tx.onerror = function(){ res(null); };
+        tx.onabort = function(){ res(null); };
+      });
+    });
+  }
+  // Возвращает true, только если запись действительно легла на диск.
+  function vput(r){ return vtx('readwrite', function(st){ return st.put(r); })
+    .then(function(k){ return k !== null && k !== undefined; })
+    .catch(function(){ return false; }); }
+  function vget(id){ return vtx('readonly', function(st){ return st.get(id); }).catch(function(){ return null; }); }
+  function vdel(id){ return id ? vtx('readwrite', function(st){ st.delete(id); }).catch(function(){}) : Promise.resolve(); }
+  function vall(){
+    return vtx('readonly', function(st){ return st.getAll(); })
+      .then(function(l){ return (l || []).sort(function(a, b){ return (a.ts || 0) - (b.ts || 0); }); })
+      .catch(function(){ return []; });
+  }
+
+  // ---- строка во «Входящих» ----
+  function item(id){
+    for (var i = 0; i < S.inbox.length; i++) if (S.inbox[i].id === id) return S.inbox[i];
+    return null;
+  }
+  function redraw(){
+    save();
+    try { renderInbox(); renderInboxBadge(); } catch(e){}
+    idle();
+  }
+  function mark(id, state, text, detail){
+    var it = item(id);
+    if (!it) return null;
+    it.voice = 1; it.vstate = state; it.text = text;
+    if (detail) it.vdetail = String(detail).slice(0, 300); else delete it.vdetail;
+    return it;
   }
 
   // ---- запись ----
@@ -759,7 +921,9 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       rec.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
       rec.onstop = function(){
         dropTracks();
-        handle(new Blob(chunks, { type: (rec && rec.mimeType) || 'audio/webm' }));
+        var b = new Blob(chunks, { type: (rec && rec.mimeType) || 'audio/webm' });
+        chunks = []; rec = null;
+        accept(b);
       };
       rec.start();
       t0 = Date.now();
@@ -782,9 +946,14 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return Promise.reject(new Error('нет AudioContext'));
     var ctx = new AC();
+    // Закрывать обязательно на ЛЮБОМ исходе: у Safari лимит на число живых
+    // AudioContext, и после нескольких неудач подряд перекодировка переставала
+    // работать вообще - до перезагрузки страницы.
+    function shut(){ try { ctx.close(); } catch(e){} }
     return new Promise(function(res, rej){
       ctx.decodeAudioData(buf, res, function(){ rej(new Error('не разобрал аудио')); });
-    }).then(function(ab){ try { ctx.close(); } catch(e){} return encodeWav(ab); });
+    }).then(function(ab){ shut(); return encodeWav(ab); },
+            function(e){ shut(); throw e; });
   }
 
   function encodeWav(ab){
@@ -797,13 +966,14 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 
     var ratio = ab.sampleRate / RATE;
     var len = Math.max(1, Math.floor(src.length / ratio));
-    var pcm = new Int16Array(len);
+    var pcm = new Int16Array(len), peak = 0;
     for (var j = 0; j < len; j++){
       var from = Math.floor(j * ratio), to = Math.min(src.length, Math.floor((j + 1) * ratio));
       var sum = 0, n = 0;
       for (var k = from; k < to; k++){ sum += src[k]; n++; }
       var v = n ? sum / n : 0;
       v = v < -1 ? -1 : (v > 1 ? 1 : v);
+      if (v > peak) peak = v; else if (-v > peak) peak = -v;
       pcm[j] = v < 0 ? v * 0x8000 : v * 0x7FFF;
     }
     var hdr = new ArrayBuffer(44), dv = new DataView(hdr), bytes = pcm.length * 2;
@@ -813,13 +983,16 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     dv.setUint32(24, RATE, true); dv.setUint32(28, RATE * 2, true);
     dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
     ascii(36, 'data'); dv.setUint32(40, bytes, true);
-    return new Blob([hdr, pcm.buffer], { type: 'audio/wav' });
+    return { blob: new Blob([hdr, pcm.buffer], { type: 'audio/wav' }),
+             peak: peak, secs: Math.round(len / RATE) };
   }
 
   // ---- отправка ----
   function send(wav){
+    // Спрашивать адрес отсюда нельзя: автоповтор может сработать в фоне и
+    // выкинуть окно ввода посреди дня. Адрес спрашивается при нажатии кнопки.
     var url = apiUrl();
-    if (!url) return Promise.reject(new Error('не указан адрес расшифровки'));
+    if (!url) return Promise.reject(new Error('не задан адрес расшифровки'));
     var zones = (window.ZONE_DEFS || []).map(function(z){ return { id: z.id, name: z.name }; });
     var full = url + '?today=' + encodeURIComponent(todayStr()) +
                '&zones=' + encodeURIComponent(JSON.stringify(zones));
@@ -827,166 +1000,196 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     if (window.AbortController){
       var ac = new AbortController();
       opts.signal = ac.signal;
-      stop = setTimeout(function(){ ac.abort(); }, 75000);
+      // Сервер сдаётся сам на 50-й секунде; ждём чуть дольше и не больше.
+      stop = setTimeout(function(){ ac.abort(); }, 65000);
     }
-    return fetch(full, opts)
-      .then(function(r){
-        if (stop) clearTimeout(stop);
-        return r.text().then(function(body){
-          var j = null; try { j = JSON.parse(body); } catch(e){}
-          if (!r.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
-          if (!j) throw new Error('пустой ответ');
-          return j;
-        });
+    return fetch(full, opts).then(function(r){
+      if (stop) clearTimeout(stop);
+      return r.text().then(function(body){
+        var j = null; try { j = JSON.parse(body); } catch(e){}
+        if (!r.ok){
+          var err = new Error((j && j.error) || ('HTTP ' + r.status));
+          err.detail = (j && j.detail) || body.slice(0, 200);
+          throw err;
+        }
+        if (!j) throw new Error('пустой ответ');
+        return j;
       });
+    }, function(e){ if (stop) clearTimeout(stop); throw e; });
   }
 
-  // ---- хранилище неудавшихся записей ----
-  // Отдельная база, НЕ ezhednevnik-db: у той версия 1, и поднятие версии
-  // сломало бы открытие базы самим приложением.
-  var VDB = 'ezhednevnik-voice', VSTORE = 'pending';
-  function vopen(){
-    return new Promise(function(res, rej){
-      if (!window.indexedDB) return rej(new Error('нет IndexedDB'));
-      var r = indexedDB.open(VDB, 1);
-      r.onupgradeneeded = function(){ r.result.createObjectStore(VSTORE, { keyPath: 'id' }); };
-      r.onsuccess = function(){ res(r.result); };
-      r.onerror = function(){ rej(r.error); };
+  // ---- запись принята: сначала на диск, потом в эфир ----
+  function accept(blob){
+    if (!blob || !blob.size){ idle(); return; }
+    paint('mic-busy', '…', 'Готовлю запись');
+    blob.arrayBuffer().then(decode).then(function(w){
+      var id = uid(), now = Date.now();
+      var quiet = w.peak < SILENCE, toobig = w.blob.size > MAX_BODY;
+      // 1) звук на диск - раньше всего остального
+      var rr = { id: id, blob: w.blob, ts: now, tries: 0, secs: w.secs, peak: w.peak };
+      mem[id] = rr;
+      return vput(rr)
+        .then(function(ok){
+          // Легло на диск - держать копию в памяти незачем. Не легло - только
+          // она и остаётся, поэтому её не выбрасываем.
+          if (ok) delete mem[id];
+          // 2) видимая строка - до отправки, а не после успеха
+          S.inbox.push({ id: id, text: '🎤 расшифровывается…', zone: null,
+                         created: todayStr(), createdAt: now, done: false, plannedDate: null,
+                         raw: '', voice: 1, vstate: 'work' });
+          if (quiet)  mark(id, 'fail', '🎤 микрофон молчал (' + hhmm(now) + ') — в записи тишина', 'громкость ' + w.peak.toFixed(4) + ', ' + w.secs + ' с');
+          if (toobig) mark(id, 'fail', '🎤 запись слишком длинная (' + hhmm(now) + ')', w.blob.size + ' Б при пределе ' + MAX_BODY);
+          redraw();
+          if (quiet || toobig){
+            // Не жжём квоту на заведомо бесполезном, но звук храним: ↻ отправит.
+            rr.tries = MAX_TRIES;
+            return vput(rr);
+          }
+          pump();
+        });
+    }).catch(function(e){
+      // Даже перекодировка может упасть. Терять уже нечего, кроме самого факта -
+      // пусть он останется записью, а не всплывашкой на две секунды.
+      var id = uid(), now = Date.now();
+      S.inbox.push({ id: id, text: '❓ голосовая не записалась (' + hhmm(now) + ') — ' +
+                           String((e && e.message) || e).slice(0, 70),
+                     zone: null, created: todayStr(), createdAt: now, done: false,
+                     plannedDate: null, raw: '', voice: 1, vstate: 'dead' });
+      redraw();
+      toast('Не записалось: ' + ((e && e.message) || e));
     });
   }
-  function vput(rec){
-    return vopen().then(function(db){
-      return new Promise(function(res){
-        var tx = db.transaction(VSTORE, 'readwrite');
-        tx.objectStore(VSTORE).put(rec);
-        tx.oncomplete = function(){ res(); };
-        tx.onerror = function(){ res(); };
+
+  // ---- очередь: по одной записи за раз, с отступом после неудач ----
+  function pump(){
+    if (sending) return;
+    if (pumpTimer){ clearTimeout(pumpTimer); pumpTimer = null; }
+    vall().then(function(list){
+      var seen = {};
+      list.forEach(function(r){ seen[r.id] = 1; });
+      Object.keys(mem).forEach(function(k){ if (!seen[k]) list.push(mem[k]); });
+      list.sort(function(a, b){ return (a.ts || 0) - (b.ts || 0); });
+      if (!list.length){ idle(); return; }
+      var now = Date.now(), next = null, soonest = Infinity;
+      list.forEach(function(r){
+        if ((r.tries || 0) >= MAX_TRIES) return;
+        var at = r.nextAt || 0;
+        if (at <= now){ if (!next) next = r; }
+        else if (at < soonest) soonest = at;
       });
-    }).catch(function(){});
-  }
-  function vall(){
-    return vopen().then(function(db){
-      return new Promise(function(res){
-        var rq = db.transaction(VSTORE, 'readonly').objectStore(VSTORE).getAll();
-        rq.onsuccess = function(){ res(rq.result || []); };
-        rq.onerror = function(){ res([]); };
-      });
-    }).catch(function(){ return []; });
-  }
-  function vdel(id){
-    if (!id) return Promise.resolve();
-    return vopen().then(function(db){
-      return new Promise(function(res){
-        var tx = db.transaction(VSTORE, 'readwrite');
-        tx.objectStore(VSTORE).delete(id);
-        tx.oncomplete = function(){ res(); };
-        tx.onerror = function(){ res(); };
-      });
-    }).catch(function(){});
+      if (!next){
+        if (soonest < Infinity) pumpTimer = setTimeout(pump, Math.min(soonest - now, 60000) + 200);
+        idle();
+        return;
+      }
+      run(next);
+    });
   }
 
-  // ---- запись не пропадает, даже если расшифровка упала ----
-  function stash(reason){
-    if (pendingId) return;
-    var d = new Date();
-    var hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
-    pendingId = uid();
-    // Причина живёт в самой записи: всплывашка исчезает, а разбираться приходится потом.
-    S.inbox.push({ id: pendingId,
-                   text: '\u2753 голосовая не расшифровалась (' + hh + ':' + mm + ') \u2014 ' +
-                         String(reason || 'причина неизвестна').slice(0, 70),
-                   zone: null, created: todayStr(), createdAt: Date.now(), done: false,
-                   plannedDate: null, raw: '' });
-    save(); renderInbox(); renderInboxBadge();
+  function run(r){
+    if (sending) return;
+    sending = true;
+    var t = Date.now();
+    var it = item(r.id);
+    if (it && it.vstate !== 'work'){ mark(r.id, 'work', '🎤 расшифровывается…'); redraw(); }
+    idle();
+
+    send(r.blob).then(function(res){
+      sending = false;
+      vdel(r.id); delete mem[r.id];
+      var secs = Math.round((Date.now() - t) / 1000);
+      var text = (res.text || '').trim() || (res.transcript || '').slice(0, 90) || 'пустая запись';
+      if (!res.understood) text = '❓ ' + text;
+      var it2 = item(r.id);
+      if (it2){
+        it2.text = text;
+        it2.zone = res.zone || null;
+        it2.plannedDate = res.date || null;
+        it2.raw = res.transcript || '';
+        delete it2.voice; delete it2.vstate; delete it2.vdetail;
+      } else {
+        // Строку удалили руками, пока шла расшифровка - результат всё равно не теряем.
+        S.inbox.push({ id: uid(), text: text, zone: res.zone || null, created: todayStr(),
+                       createdAt: r.ts || Date.now(), done: false, plannedDate: res.date || null,
+                       raw: res.transcript || '' });
+      }
+      redraw();
+      var z = zoneName(res.zone);
+      toast((res.understood ? '✔ ' : '❓ ') + (z || 'без сферы') +
+            (res.date ? ' · ' + res.date : '') + '  ' + secs + ' c');
+      pump();
+    }).catch(function(e){
+      sending = false;
+      var why = (e && e.message) || String(e);
+      if (/abort/i.test(why)) why = 'не уложилось по времени';
+      else if (/failed to fetch|networkerror|load failed/i.test(why)) why = 'нет связи с сервером';
+      var tries = (r.tries || 0) + 1;
+      var wait = BACKOFF[Math.min(tries - 1, BACKOFF.length - 1)];
+      // Звук остаётся в базе при любом исходе, кроме успеха.
+      var upd = { id: r.id, blob: r.blob, ts: r.ts, tries: tries, secs: r.secs, peak: r.peak,
+                  nextAt: Date.now() + wait, lastErr: why };
+      vput(upd); if (mem[r.id]) mem[r.id] = upd;
+      var over = tries >= MAX_TRIES;
+      mark(r.id, over ? 'fail' : 'work',
+           (over ? '❓ голосовая не расшифровалась (' : '🎤 не вышло, повторю (') +
+           hhmm(r.ts) + ') — ' + why.slice(0, 70),
+           (e && e.detail) || why);
+      redraw();
+      if (over) toast('Не расшифровалось: ' + why + ' · нажми ↻ в строке');
+      else toast('Не вышло: ' + why + ' · повтор через ' + Math.round(wait / 1000) + ' с');
+      pump();
+    });
   }
 
-  function done(res){
-    busy = false; lastWav = null; idle();
-    if (pendingId){
-      S.inbox = S.inbox.filter(function(x){ return x.id !== pendingId; });
-      pendingId = null;
-    }
-    vdel(voiceKey); voiceKey = null; tries = 0;
-    var text = (res.text || '').trim() || (res.transcript || '').slice(0, 90) || 'пустая запись';
-    if (!res.understood) text = '\u2753 ' + text;
-
-    S.inbox.push({ id: uid(), text: text, zone: res.zone || null, created: todayStr(),
-                   createdAt: Date.now(), done: false, plannedDate: res.date || null,
-                   raw: res.transcript || '' });
-    save(); renderInbox(); renderInboxBadge();
-
-    var z = zoneName(res.zone);
-    var secs = started ? Math.round((Date.now() - started) / 1000) : 0;
-    toast((res.understood ? '\u2714 ' : '\u2753 ') + (z || 'без сферы') + (res.date ? ' \u00B7 ' + res.date : '') + (secs ? '  ' + secs + ' c' : ''));
-  }
-
-  function fail(e){
-    busy = false;
-    var why = (e && e.message) || String(e);
-    if (/504|timeout|abort/i.test(why)) why = 'не уложилось по времени';
-    paint('mic-err', '\u21BB', 'Не вышло - нажми, чтобы повторить');
-    toast('Не расшифровалось: ' + why);
-    stash(why);
-    // Звук ложится в базу: перезагрузка страницы его больше не убивает.
-    if (!voiceKey) voiceKey = pendingId;
-    if (lastWav && voiceKey) vput({ id: voiceKey, blob: lastWav, ts: Date.now(), tries: tries });
-  }
-
-  function handle(blob){
-    if (!blob || !blob.size){ idle(); return; }
-    busy = true; started = Date.now(); paint('mic-busy', '\u2026', 'Расшифровываю');
-    blob.arrayBuffer().then(decode).then(function(wav){
-      lastWav = wav;
-      return send(wav);
-    }).then(done).catch(fail);
-  }
-
+  // ---- ручки наружу ----
   window.micToggle = function(){
-    if (busy) return;
     if (rec && rec.state === 'recording'){ stopRec(); return; }
-    if (lastWav){                       // повтор после неудачи - без перезаписи
-      busy = true; paint('mic-busy', '\u2026', 'Повторяю');
-      send(lastWav).then(done).catch(fail);
-      return;
-    }
-    startRec();
+    if (!apiUrl() && !askApiUrl()) return;   // спросить адрес можно только здесь
+    startRec();                       // микрофон свободен ВСЕГДА, даже если очередь занята
   };
+  window.voiceRetry = function(id){
+    vget(id).then(function(r){
+      if (!r || !r.blob) r = mem[id];
+      if (!r || !r.blob){
+        var it = item(id);
+        if (it){ it.vstate = 'dead'; it.vdetail = 'звук не найден на этом устройстве'; }
+        redraw(); toast('Звук этой записи здесь не сохранился');
+        return;
+      }
+      r.tries = 0; r.nextAt = 0;
+      vput(r).then(pump);
+    });
+  };
+  window.voiceForget = function(id){ vdel(id); delete mem[id]; };
 
-  // Осталась запись с прошлого раза - пробуем её сами, но не бесконечно:
-  // три неудачи подряд и дальше только по кнопке, чтобы не молотить впустую.
+  // ---- подъём после перезагрузки ----
   vall().then(function(list){
-    var rec = list[0];
-    if (!rec || !rec.blob) return;
-    lastWav = rec.blob;
-    voiceKey = rec.id;
-    // Пометка могла быть удалена руками - тогда при неудаче заведётся новая.
-    pendingId = S.inbox.some(function(x){ return x.id === rec.id; }) ? rec.id : null;
-    tries = rec.tries || 0;
-    paint('mic-err', '\u21BB', 'Осталась нерасшифрованная запись');
-    if (tries >= 3){ toast('Запись так и не расшифровалась - нажми \u21BB'); return; }
-    setTimeout(function(){
-      if (busy || !lastWav) return;
-      tries++;
-      vput({ id: voiceKey, blob: lastWav, ts: rec.ts, tries: tries });
-      busy = true; started = Date.now();
-      paint('mic-busy', '\u2026', 'Дорасшифровываю прошлую запись');
-      send(lastWav).then(done).catch(fail);
-    }, 4000);
+    var known = {};
+    list.forEach(function(r){ known[r.id] = r; });
+    // Строка есть, а звука нет - значит она приехала синхронизацией с другого
+    // устройства. Пусть честно об этом скажет, а не висит «расшифровывается».
+    S.inbox.forEach(function(x){
+      if (x.voice && x.vstate === 'work' && !known[x.id]){
+        x.vstate = 'dead';
+        x.text = '❓ голосовая осталась на другом устройстве (' + hhmm(x.createdAt) + ')';
+      }
+    });
+    // Звук есть, а строки нет - строку удалили руками. Звук больше не нужен.
+    list.forEach(function(r){ if (!item(r.id)) vdel(r.id); });
+    try { renderInbox(); renderInboxBadge(); } catch(e){}
+    pump();
   });
+
+  window.addEventListener('online', function(){ pump(); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) pump(); });
 
   // Подписи «сегодня/вчера» живут только до полуночи, а перерисовки при смене
   // суток в приложении нет: вкладка на телефоне не закрывается неделями.
   var seenDay = todayStr();
-  function refreshIfDayChanged(){
+  setInterval(function(){
     var now = todayStr();
-    if (now === seenDay) return;
-    seenDay = now;
-    try { renderInbox(); renderInboxBadge(); } catch(e){}
-  }
-  setInterval(refreshIfDayChanged, 60000);
-  document.addEventListener('visibilitychange', function(){
-    if (!document.hidden) refreshIfDayChanged();
-  });
+    if (now !== seenDay){ seenDay = now; try { renderInbox(); renderInboxBadge(); } catch(e){} }
+  }, 60000);
 
   idle();
 })();
