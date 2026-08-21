@@ -105,12 +105,13 @@ SCHEMA = {
 # Настройки запроса по убыванию желательности. Если модель ругается на поле
 # (HTTP 400), пробуем следующий вариант, а не сдаёмся. Так переезд Google с
 # thinkingBudget на thinkingLevel не превращается в «кнопка перестала работать».
+# Лестница ровно из трёх ступеней, сверху вниз - от быстрого к безотказному.
+# Модель, которая не умеет отвечать с выключенным думанием, молчит СКОЛЬКО
+# УГОДНО раз подряд, поэтому пустой ответ - повод шагнуть вниз, а не повторить.
 VARIANTS = [
-    ("схема+думание off", {"responseSchema": SCHEMA,
-                           "thinkingConfig": {"thinkingBudget": 0}}),
-    ("схема+думание low", {"responseSchema": SCHEMA,
-                           "thinkingConfig": {"thinkingLevel": "LOW"}}),
-    ("схема", {"responseSchema": SCHEMA}),
+    ("схема + думание выключено", {"responseSchema": SCHEMA,
+                                   "thinkingConfig": {"thinkingBudget": 0}}),
+    ("схема, думание своё", {"responseSchema": SCHEMA}),
     ("голый запрос", {}),
 ]
 
@@ -253,41 +254,55 @@ def _call(key, model, body, timeout):
     data, why = _extract(raw)
     if data is not None:
         return data, None, ""
-    # Пустой ответ иногда лечится простым повтором, блокировка фильтром - нет.
-    return None, "%s: %s" % (model, why), ("model" if "фильтр" in why else "retry")
+    if "фильтр" in why:
+        return None, "%s: %s" % (model, why), "model"
+    # Модель ответила, но не тем. Повторять ту же настройку смысла мало -
+    # спускаемся на ступень ниже.
+    return None, "%s: %s" % (model, why), "simplify"
 
 
 def _ask_gemini(key, audio_b64, prompt, deadline):
     """Модели по очереди. Всё - в общий бюджет времени: лучше честный отказ
-    на 50-й секунде, чем убитая платформой функция без ответа."""
+    на 50-й секунде, чем убитая платформой функция без ответа.
+
+    Пустой ответ два раза подряд - повод упростить запрос, а не долбить ту же
+    настройку. Модель, которая не умеет отвечать с выключенным думанием, будет
+    молчать сколько угодно раз; следующий вариант её оживляет."""
     last = "нет доступных моделей"
 
     for model in MODELS:
-        start_variant = _GOOD_VARIANT.get(model, 0)
-        vi = start_variant
-        attempts_here = 0
-        while vi < len(VARIANTS):
+        vi = _GOOD_VARIANT.get(model, 0)
+        heavy = 0            # попытки, которые реально стоили времени (400 не в счёт)
+        retried = False
+        while vi < len(VARIANTS) and heavy < len(VARIANTS):
             left = deadline - time.time()
             if left < MIN_ATTEMPT_SEC:
                 log("бюджет кончился, осталось %.1fс" % left)
-                return None, last if attempts_here else "не успели за отведённое время"
+                return None, last if heavy else "не успели за отведённое время"
             name, extra = VARIANTS[vi]
             body = _body(audio_b64, prompt, extra)
             timeout = max(MIN_ATTEMPT_SEC, min(ATTEMPT_SEC, left - 1.0))
             log("запрос", model, "[" + name + "]", "лимит %.0fс" % timeout,
                 "тело %d КБ" % (len(body) // 1024))
-            attempts_here += 1
             data, why, what = _call(key, model, body, timeout)
             if data is not None:
                 _GOOD_VARIANT[model] = vi
                 return data, None
             last = why
-            if what == "variant":
-                vi += 1                    # модель не поняла поле - упрощаем запрос
+
+            if what == "variant":            # модель не поняла поле запроса (400)
+                vi += 1                      # дёшево, за попытку не считаем
                 continue
-            if what == "retry" and attempts_here == 1 and deadline - time.time() > MIN_ATTEMPT_SEC * 2:
-                continue                   # один повтор того же варианта
-            break                          # дальше эта модель бесполезна
+            heavy += 1
+            if what == "simplify":           # ответила, но не тем - ступень ниже
+                vi += 1
+                retried = False
+                continue
+            if what == "retry" and not retried:
+                retried = True               # перегрузка или сеть - один повтор
+                continue
+            break                            # 429, фильтр, повтор не помог
+
     return None, last
 
 

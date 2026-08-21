@@ -168,6 +168,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .inbox-item.voice-fail { border-color: #f0c0b8; background: #fdf7f6; }
 .inbox-item.voice-dead { border-color: #ddd; background: #f7f7f5; }
 .inbox-item.voice-dead .inbox-item-text { color: #999; }
+.inbox-why { font-size: 11px; line-height: 1.35; color: #8b2020; margin-top: 4px; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .inbox-item .small-check { flex-shrink: 0; }
 .inbox-item-text { flex: 1; font-size: 13px; min-width: 120px; }
 .inbox-item-text.done { text-decoration: line-through; color: #bbb; }
@@ -519,7 +520,8 @@ function renderInbox(){
     }else{
       var opts='<option value="" disabled selected>→ день</option>';
       dates.forEach(function(d){opts+='<option value="'+dateKey(d)+'">'+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
-      return '<div class="inbox-item'+vCls+'">'+checkH+'<div class="inbox-item-text"'+vTitle+'>'+esc(item.text)+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions">'+vBtn+'<select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+      var vWhy=item.vdetail?'<div class="inbox-why">'+esc(item.vdetail)+'</div>':'';
+      return '<div class="inbox-item'+vCls+'">'+checkH+'<div class="inbox-item-text"'+vTitle+'>'+esc(item.text)+vWhy+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions">'+vBtn+'<select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
     }
   }
   var h='';
@@ -1131,7 +1133,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       vput(upd); if (mem[r.id]) mem[r.id] = upd;
       var over = tries >= MAX_TRIES;
       mark(r.id, over ? 'fail' : 'work',
-           (over ? '❓ голосовая не расшифровалась (' : '🎤 не вышло, повторю (') +
+           (over ? '❓ не расшифровалось, больше не пробую — нажми ↻ (' :
+                   '🎤 не вышло, повторю через ' + Math.round(wait / 1000) + ' с (') +
            hhmm(r.ts) + ') — ' + why.slice(0, 70),
            (e && e.detail) || why);
       redraw();
@@ -1157,6 +1160,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
         return;
       }
       r.tries = 0; r.nextAt = 0;
+      mark(id, 'work', '🎤 пробую ещё раз…');
+      redraw(); toast('Пробую ещё раз…');
       vput(r).then(pump);
     });
   };
