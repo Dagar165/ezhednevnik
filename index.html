@@ -167,6 +167,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .inbox-item-text { flex: 1; font-size: 13px; min-width: 120px; }
 .inbox-item-text.done { text-decoration: line-through; color: #bbb; }
 .inbox-item-zone { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .inbox-stamp { font-size: 10px; color: #b3b0aa; white-space: nowrap; letter-spacing: 0.02em; }
 .inbox-planned-tag { font-size: 11px; padding: 3px 8px; border-radius: 5px; background: #eef4ff; color: #3a5c8a; font-weight: 500; white-space: nowrap; }
 .inbox-actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 .inbox-actions select { font-size: 11px; border: 0.5px solid #e0deda; border-radius: 5px; padding: 4px 6px; background: #fafaf8; font-family: inherit; }
@@ -429,6 +430,23 @@ function deleteWeekTask(dk,id){S.weekTasks[dk]=(S.weekTasks[dk]||[]).filter(func
 function toggleWeekMain(dk){if(S.mainTask[dk]){S.mainTask[dk].done=!S.mainTask[dk].done;save();renderWeek();if(dk===todayStr())renderMainTask()}}
 
 // INBOX
+// Когда запись создана. createdAt (с временем) появился 21.08.2026;
+// у записей старше есть только created - дата без времени.
+function stampHtml(item){
+  var d = item.createdAt ? new Date(item.createdAt) : null;
+  var day, time = '';
+  if (d && !isNaN(d.getTime())){
+    day = dateKey(d);
+    time = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  } else day = item.created || '';
+  if (!day) return '';
+  var label, y = new Date(); y.setDate(y.getDate() - 1);
+  if (day === todayStr()) label = 'сегодня';
+  else if (day === dateKey(y)) label = 'вчера';
+  else { var p = day.split('-'); label = p.length === 3 ? p[2] + '.' + p[1] : day; }
+  if (time) label += ' ' + time;
+  return '<span class="inbox-stamp" title="Когда записано">' + esc(label) + '</span>';
+}
 function renderInbox(){
   var all=S.inbox.filter(function(x){return!x.done});
   var unplanned=all.filter(function(x){return!x.plannedDate});
@@ -445,11 +463,11 @@ function renderInbox(){
       var label=DAY_SHORT[pd.getDay()]+' '+pd.getDate();
       var opts='<option value="'+item.plannedDate+'" selected>'+label+'</option>';
       dates.forEach(function(d){var dk=dateKey(d);if(dk!==item.plannedDate)opts+='<option value="'+dk+'">→ '+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
-      return '<div class="inbox-item planned">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+'<span class="inbox-planned-tag">📅 '+label+'</span><div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" title="Снять с дня" onclick="unplanInbox(\''+item.id+'\')">↺</button><button class="z-btn del-t" title="Удалить совсем" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+      return '<div class="inbox-item planned">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+stampHtml(item)+'<span class="inbox-planned-tag">📅 '+label+'</span><div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" title="Снять с дня" onclick="unplanInbox(\''+item.id+'\')">↺</button><button class="z-btn del-t" title="Удалить совсем" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
     }else{
       var opts='<option value="" disabled selected>→ день</option>';
       dates.forEach(function(d){opts+='<option value="'+dateKey(d)+'">'+DAY_SHORT[d.getDay()]+' '+d.getDate()+'</option>'});
-      return '<div class="inbox-item">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+'<div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
+      return '<div class="inbox-item">'+checkH+'<div class="inbox-item-text">'+esc(item.text)+'</div>'+zH+stampHtml(item)+'<div class="inbox-actions"><select onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select><button class="z-btn del-t" onclick="deleteInbox(\''+item.id+'\')">✕</button></div></div>';
     }
   }
   var h='';
@@ -466,7 +484,7 @@ function renderInbox(){
   document.getElementById('inbox-list').innerHTML=h;
 }
 function renderInboxBadge(){var unplan=S.inbox.filter(function(x){return!x.done&&!x.plannedDate}).length;var plan=S.inbox.filter(function(x){return!x.done&&x.plannedDate}).length;var txt='Входящие';var badge='';if(unplan&&plan)badge='<span class="tab-badge">'+unplan+'+'+plan+'</span>';else if(unplan)badge='<span class="tab-badge">'+unplan+'</span>';else if(plan)badge='<span class="tab-badge" style="background:#3a5c8a">'+plan+'</span>';document.getElementById('inbox-tab-btn').innerHTML=txt+badge}
-function addInbox(){var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();if(!t)return;S.inbox.push({id:uid(),text:t,zone:z.value||null,created:todayStr(),done:false,plannedDate:null});i.value='';z.value='';save();renderInbox();renderInboxBadge();toast('Записано')}
+function addInbox(){var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();if(!t)return;S.inbox.push({id:uid(),text:t,zone:z.value||null,created:todayStr(),createdAt:Date.now(),done:false,plannedDate:null});i.value='';z.value='';save();renderInbox();renderInboxBadge();toast('Записано')}
 function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
 function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();var d=new Date(dk+'T12:00:00');var lbl=DAY_SHORT[d.getDay()]+' '+d.getDate();toast(wasPlanned?'Перенесено на '+lbl:'→ '+lbl+' · в «Запланировано» ниже');setTimeout(function(){var el=document.querySelector('.inbox-item.planned');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'})},150)}
 function unplanInbox(iid){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item)return;item.plannedDate=null;save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Снято с дня')}
@@ -822,7 +840,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     S.inbox.push({ id: pendingId,
                    text: '\u2753 голосовая не расшифровалась (' + hh + ':' + mm + ') \u2014 ' +
                          String(reason || 'причина неизвестна').slice(0, 70),
-                   zone: null, created: todayStr(), done: false, plannedDate: null, raw: '' });
+                   zone: null, created: todayStr(), createdAt: Date.now(), done: false,
+                   plannedDate: null, raw: '' });
     save(); renderInbox(); renderInboxBadge();
   }
 
@@ -836,7 +855,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     if (!res.understood) text = '\u2753 ' + text;
 
     S.inbox.push({ id: uid(), text: text, zone: res.zone || null, created: todayStr(),
-                   done: false, plannedDate: res.date || null, raw: res.transcript || '' });
+                   createdAt: Date.now(), done: false, plannedDate: res.date || null,
+                   raw: res.transcript || '' });
     save(); renderInbox(); renderInboxBadge();
 
     var z = zoneName(res.zone);
