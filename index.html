@@ -440,10 +440,18 @@ function stampHtml(item){
     time = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   } else day = item.created || '';
   if (!day) return '';
-  var label, y = new Date(); y.setDate(y.getDate() - 1);
-  if (day === todayStr()) label = 'сегодня';
-  else if (day === dateKey(y)) label = 'вчера';
-  else { var p = day.split('-'); label = p.length === 3 ? p[2] + '.' + p[1] : day; }
+  // Один источник «сейчас» на всю функцию: иначе «сегодня» и «вчера»
+  // считаются от разных часов и однажды разъедутся.
+  var nowD = new Date(), yD = new Date(nowD.getTime());
+  yD.setDate(yD.getDate() - 1);
+  var label;
+  if (day === dateKey(nowD)) label = 'сегодня';
+  else if (day === dateKey(yD)) label = 'вчера';
+  else if (day.split('-').length === 3){
+    var p = day.split('-');
+    label = p[2] + '.' + p[1];
+    if (p[0] !== String(new Date().getFullYear())) label += '.' + p[0].slice(2);
+  } else label = day;
   if (time) label += ' ' + time;
   return '<span class="inbox-stamp" title="Когда записано">' + esc(label) + '</span>';
 }
@@ -892,6 +900,20 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     }
     startRec();
   };
+
+  // Подписи «сегодня/вчера» живут только до полуночи, а перерисовки при смене
+  // суток в приложении нет: вкладка на телефоне не закрывается неделями.
+  var seenDay = todayStr();
+  function refreshIfDayChanged(){
+    var now = todayStr();
+    if (now === seenDay) return;
+    seenDay = now;
+    try { renderInbox(); renderInboxBadge(); } catch(e){}
+  }
+  setInterval(refreshIfDayChanged, 60000);
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) refreshIfDayChanged();
+  });
 
   idle();
 })();
