@@ -117,6 +117,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .add-input::placeholder { color: #bbb; }
 .add-btn { width: 34px; height: 34px; background: #1a1a18; color: #fff; border: none; border-radius: 7px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .add-btn:hover { background: #333; }
+.mic-btn { background: #2b2b28; font-size: 15px; transition: background .15s; }
+.mic-btn.mic-on { background: #E24B4A; font-size: 13px; font-weight: 600; }
+.mic-btn.mic-busy { background: #EF9F27; }
+.mic-btn.mic-err { background: #888780; }
 .drag-handle { cursor: grab; color: #ccc; font-size: 14px; padding: 0 4px; flex-shrink: 0; user-select: none; touch-action: none; }
 .drag-handle:hover { color: #999; }
 .sortable-ghost { opacity: 0.4; background: #e8f0fe !important; }
@@ -254,7 +258,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 <div class="tabs-bar"><button class="tab-btn active" onclick="switchTab('today-tab')">Сегодня</button><button class="tab-btn" onclick="switchTab('week-tab')">Неделя</button><button class="tab-btn" onclick="switchTab('inbox-tab')" id="inbox-tab-btn">Входящие</button><button class="tab-btn" onclick="switchTab('plan-tab')">📋 Планирование</button></div>
 <div class="tab-content active" id="today-tab"><div id="review-banner" class="review-banner">📋 Воскресенье — обнови зоны и спланируй неделю.</div><div class="main-task-section" id="main-task-section"></div><div class="top-row"><div class="top-card today-card"><div class="top-card-header"><span class="top-card-title">Задачи на сегодня</span><span class="today-count" id="today-count"></span></div><div class="top-card-body" id="today-tasks"></div></div><div class="top-card remind-card"><div class="top-card-header"><span class="top-card-title">Ежедневные</span></div><div class="top-card-body" id="remind-tasks"></div><div class="add-remind-row"><input class="add-input" id="inp-remind" placeholder="напоминание..." onkeydown="if(event.key==='Enter')addReminder()"><button class="add-btn" onclick="addReminder()">+</button></div></div></div><div class="zones-grid" id="zones-grid"></div><div class="hint">→ в «Сегодня» · ⊘ отменить · ✕ удалить</div></div>
 <div class="tab-content" id="week-tab"><div id="week-container"></div></div>
-<div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Запиши всё что прилетело. Потом раскинь по дням — задача появится в неделе и останется здесь с меткой 📅. ✕ в неделе = снять с дня (не удалит). ✕ в инбоксе = удалить совсем.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
+<div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Запиши всё что прилетело. Потом раскинь по дням — задача появится в неделе и останется здесь с меткой 📅. ✕ в неделе = снять с дня (не удалит). ✕ в инбоксе = удалить совсем.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn mic-btn" id="mic-btn" onclick="micToggle()" title="Записать голосом">🎤</button><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
 <div class="tab-content" id="plan-tab"><div class="plan-header"><div class="plan-title">Утреннее планирование</div><div class="plan-subtitle">Понедельник — штаб. 20 минут, чтобы разложить неделю.</div></div><div class="plan-step"><div class="plan-step-title">1. Разбери входящие</div><div class="plan-step-desc">Каждую задачу — либо раскидай по дням, либо удали. Цель: входящие = 0.</div><button class="plan-step-btn" onclick="switchTab('inbox-tab')">Входящие →</button></div><div class="plan-step"><div class="plan-step-title">2. Обнови зоны</div><div class="plan-step-desc">Пройдись по зонам. Добавь новое, удали неактуальное.</div><button class="plan-step-btn" onclick="switchTab('today-tab')">Сегодня →</button></div><div class="plan-step"><div class="plan-step-title">3. Раскидай по неделе</div><div class="plan-step-desc">Смотри свободные окна (зелёные). Не больше 2-3 задач на тяжёлые дни.</div><button class="plan-step-btn" onclick="switchTab('week-tab')">Неделя →</button></div><div class="plan-step"><div class="plan-step-title">4. Главная задача дня</div><div class="plan-step-desc">Выбери ОДНУ задачу на сегодня — самую важную. Она будет вверху «Сегодня».</div></div><div class="plan-reminder"><p><strong>Вт</strong> и <strong>Сб</strong> — тяжёлые. Не грузи сверх расписания.</p><p><strong>Пн</strong> и <strong>Пт</strong> — дни для проектов (школа, Келек, волонтёры).</p><p><strong>Чт утро</strong> — 3-4 часа глубокой работы до гимназии.</p><p><strong>Вс</strong> — не трогай. День с женой.</p></div></div>
 <button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
@@ -677,6 +681,182 @@ function cloudInit(){
 }
 setSyncBtn('off');
 if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOMContentLoaded',cloudInit);
+})();
+</script>
+<script>
+/* Голосовая заметка -> Входящие. Добавлено 21.08.2026.
+   Откат: git revert этого коммита либо git reset --hard backup-2026-08-21. */
+(function(){
+  // Адрес функции расшифровки на Vercel. Нужен только когда приложение открыто с github.io.
+  // Внутри самого деплоя Vercel адрес берётся автоматически.
+  var VERCEL_API = '';
+
+  var MAX_SEC = 120, RATE = 16000;
+  var rec = null, chunks = [], stream = null, tick = null, t0 = 0;
+  var busy = false, lastWav = null, pendingId = null;
+
+  function paint(cls, label, title){
+    var b = document.getElementById('mic-btn'); if (!b) return;
+    b.className = 'add-btn mic-btn' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.title = title || '';
+  }
+  function idle(){ paint('', '\uD83C\uDFA4', 'Записать голосом'); }
+
+  function apiUrl(){
+    if (location.hostname.indexOf('github.io') >= 0) return VERCEL_API;
+    return location.origin + '/api/note';
+  }
+  function zoneName(id){
+    var n = null;
+    (window.ZONE_DEFS || []).forEach(function(z){ if (z.id === id) n = z.name; });
+    return n;
+  }
+  function dropTracks(){
+    if (stream){ stream.getTracks().forEach(function(x){ x.stop(); }); stream = null; }
+  }
+
+  // ---- запись ----
+  function startRec(){
+    if (!navigator.mediaDevices || !window.MediaRecorder){ toast('Браузер не умеет запись'); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s){
+      stream = s; chunks = [];
+      try { rec = new MediaRecorder(s); }
+      catch(e){ dropTracks(); toast('Запись недоступна'); return; }
+      rec.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function(){
+        dropTracks();
+        handle(new Blob(chunks, { type: (rec && rec.mimeType) || 'audio/webm' }));
+      };
+      rec.start();
+      t0 = Date.now();
+      paint('mic-on', String(MAX_SEC), 'Осталось секунд - нажми, чтобы закончить');
+      tick = setInterval(function(){
+        var left = MAX_SEC - Math.floor((Date.now() - t0) / 1000);
+        paint('mic-on', String(Math.max(0, left)), 'Осталось секунд');
+        if (left <= 0) stopRec();
+      }, 250);
+    }).catch(function(){ toast('Нет доступа к микрофону'); });
+  }
+
+  function stopRec(){
+    if (tick){ clearInterval(tick); tick = null; }
+    if (rec && rec.state === 'recording') rec.stop();
+  }
+
+  // ---- перекодировка в WAV 16 кГц моно: одинаково понимают iPhone, Android и Windows ----
+  function decode(buf){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return Promise.reject(new Error('нет AudioContext'));
+    var ctx = new AC();
+    return new Promise(function(res, rej){
+      ctx.decodeAudioData(buf, res, function(){ rej(new Error('не разобрал аудио')); });
+    }).then(function(ab){ try { ctx.close(); } catch(e){} return encodeWav(ab); });
+  }
+
+  function encodeWav(ab){
+    var src;
+    if (ab.numberOfChannels > 1){
+      var a = ab.getChannelData(0), b = ab.getChannelData(1);
+      src = new Float32Array(a.length);
+      for (var i = 0; i < a.length; i++) src[i] = (a[i] + b[i]) / 2;
+    } else src = ab.getChannelData(0);
+
+    var ratio = ab.sampleRate / RATE;
+    var len = Math.max(1, Math.floor(src.length / ratio));
+    var pcm = new Int16Array(len);
+    for (var j = 0; j < len; j++){
+      var from = Math.floor(j * ratio), to = Math.min(src.length, Math.floor((j + 1) * ratio));
+      var sum = 0, n = 0;
+      for (var k = from; k < to; k++){ sum += src[k]; n++; }
+      var v = n ? sum / n : 0;
+      v = v < -1 ? -1 : (v > 1 ? 1 : v);
+      pcm[j] = v < 0 ? v * 0x8000 : v * 0x7FFF;
+    }
+    var hdr = new ArrayBuffer(44), dv = new DataView(hdr), bytes = pcm.length * 2;
+    function ascii(off, s){ for (var i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i)); }
+    ascii(0, 'RIFF');  dv.setUint32(4, 36 + bytes, true); ascii(8, 'WAVE');
+    ascii(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, RATE, true); dv.setUint32(28, RATE * 2, true);
+    dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+    ascii(36, 'data'); dv.setUint32(40, bytes, true);
+    return new Blob([hdr, pcm.buffer], { type: 'audio/wav' });
+  }
+
+  // ---- отправка ----
+  function send(wav){
+    var url = apiUrl();
+    if (!url) return Promise.reject(new Error('не указан адрес расшифровки'));
+    var zones = (window.ZONE_DEFS || []).map(function(z){ return { id: z.id, name: z.name }; });
+    var full = url + '?today=' + encodeURIComponent(todayStr()) +
+               '&zones=' + encodeURIComponent(JSON.stringify(zones));
+    return fetch(full, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav })
+      .then(function(r){
+        return r.text().then(function(body){
+          var j = null; try { j = JSON.parse(body); } catch(e){}
+          if (!r.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+          if (!j) throw new Error('пустой ответ');
+          return j;
+        });
+      });
+  }
+
+  // ---- запись не пропадает, даже если расшифровка упала ----
+  function stash(){
+    if (pendingId) return;
+    var d = new Date();
+    var hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+    pendingId = uid();
+    S.inbox.push({ id: pendingId, text: '\u2753 голосовая не расшифровалась (' + hh + ':' + mm + ')',
+                   zone: null, created: todayStr(), done: false, plannedDate: null, raw: '' });
+    save(); renderInbox(); renderInboxBadge();
+  }
+
+  function done(res){
+    busy = false; lastWav = null; idle();
+    if (pendingId){
+      S.inbox = S.inbox.filter(function(x){ return x.id !== pendingId; });
+      pendingId = null;
+    }
+    var text = (res.text || '').trim() || (res.transcript || '').slice(0, 90) || 'пустая запись';
+    if (!res.understood) text = '\u2753 ' + text;
+
+    S.inbox.push({ id: uid(), text: text, zone: res.zone || null, created: todayStr(),
+                   done: false, plannedDate: res.date || null, raw: res.transcript || '' });
+    save(); renderInbox(); renderInboxBadge();
+
+    var z = zoneName(res.zone);
+    toast((res.understood ? '\u2714 ' : '\u2753 ') + (z || 'без сферы') + (res.date ? ' \u00B7 ' + res.date : ''));
+  }
+
+  function fail(e){
+    busy = false;
+    paint('mic-err', '\u21BB', 'Не вышло - нажми, чтобы повторить');
+    toast('Не расшифровалось: ' + ((e && e.message) || e));
+    stash();
+  }
+
+  function handle(blob){
+    if (!blob || !blob.size){ idle(); return; }
+    busy = true; paint('mic-busy', '\u2026', 'Расшифровываю');
+    blob.arrayBuffer().then(decode).then(function(wav){
+      lastWav = wav;
+      return send(wav);
+    }).then(done).catch(fail);
+  }
+
+  window.micToggle = function(){
+    if (busy) return;
+    if (rec && rec.state === 'recording'){ stopRec(); return; }
+    if (lastWav){                       // повтор после неудачи - без перезаписи
+      busy = true; paint('mic-busy', '\u2026', 'Повторяю');
+      send(lastWav).then(done).catch(fail);
+      return;
+    }
+    startRec();
+  };
+
+  idle();
 })();
 </script>
 </body>
