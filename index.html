@@ -339,12 +339,16 @@ function save(){
   _saveTimeout=setTimeout(function(){idbSave(JSON.stringify(S))},1000);
   // Update URL hash for bookmarking (debounced to avoid lag)
   _updateHashTimer&&clearTimeout(_updateHashTimer);
-  _updateHashTimer=setTimeout(updateUrlHash,3000);
+  _updateHashTimer=setTimeout(clearUrlHash,3000);
   // Visual save indicator
   showSaveIndicator();
 }
 var _updateHashTimer=null;
-function updateUrlHash(){try{var json=JSON.stringify(S);if(json.length<50000){history.replaceState(null,'','#'+encodeURIComponent(json))}}catch(e){}}
+// Раньше сюда складывался весь ежедневник целиком: любая скопированная ссылка
+// уносила все данные, а после 50 000 символов запись молча прекращалась и
+// «закладка» начинала восстанавливать устаревший снимок. Теперь адрес наоборот
+// чистится. Восстановление из старых закладок при загрузке сохранено (см. README).
+function clearUrlHash(){try{if(location.hash&&location.hash.length>10)history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
 
 // Save indicator
 function showSaveIndicator(){var el=document.getElementById('save-indicator');if(!el)return;el.style.opacity='1';setTimeout(function(){el.style.opacity='0'},1500)}
@@ -693,7 +697,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 
   var MAX_SEC = 120, RATE = 16000;
   var rec = null, chunks = [], stream = null, tick = null, t0 = 0;
-  var busy = false, lastWav = null, pendingId = null;
+  var busy = false, lastWav = null, pendingId = null, started = 0;
 
   function paint(cls, label, title){
     var b = document.getElementById('mic-btn'); if (!b) return;
@@ -826,7 +830,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     save(); renderInbox(); renderInboxBadge();
 
     var z = zoneName(res.zone);
-    toast((res.understood ? '\u2714 ' : '\u2753 ') + (z || 'без сферы') + (res.date ? ' \u00B7 ' + res.date : ''));
+    var secs = started ? Math.round((Date.now() - started) / 1000) : 0;
+    toast((res.understood ? '\u2714 ' : '\u2753 ') + (z || 'без сферы') + (res.date ? ' \u00B7 ' + res.date : '') + (secs ? '  ' + secs + ' c' : ''));
   }
 
   function fail(e){
@@ -838,7 +843,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 
   function handle(blob){
     if (!blob || !blob.size){ idle(); return; }
-    busy = true; paint('mic-busy', '\u2026', 'Расшифровываю');
+    busy = true; started = Date.now(); paint('mic-busy', '\u2026', 'Расшифровываю');
     blob.arrayBuffer().then(decode).then(function(wav){
       lastWav = wav;
       return send(wav);
