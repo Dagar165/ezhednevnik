@@ -19,6 +19,7 @@
 import base64
 import fnmatch
 import json
+import re
 import os
 import sys
 import time
@@ -35,8 +36,12 @@ ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateC
 # модель с включённым «думанием» (thinking), и тогда ответ начинает приходить
 # в два-три раза дольше, а иногда обрывается на MAX_TOKENS. Настоящее имя
 # модели пишется в лог полем modelVersion - смотри его, прежде чем гадать.
+# 22.08.2026: gemini-2.0-flash Google выключил ("no longer available"), а
+# gemini-flash-latest в тот же день молчал. Ставим то, что Google сам называет
+# заменой. Если он выключит и это - функция прочитает подсказку из отказа 404
+# и сама перейдёт на названную модель, см. _ask_gemini.
 MODELS = [m.strip() for m in os.environ.get(
-    "GEMINI_MODELS", "gemini-flash-latest,gemini-2.0-flash").split(",") if m.strip()]
+    "GEMINI_MODELS", "gemini-3.6-flash,gemini-flash-latest").split(",") if m.strip()]
 
 MAX_BYTES = 4_200_000          # предел тела запроса у Vercel - 4.5 МБ, берём с запасом
 
@@ -108,12 +113,22 @@ SCHEMA = {
 # Лестница ровно из трёх ступеней, сверху вниз - от быстрого к безотказному.
 # Модель, которая не умеет отвечать с выключенным думанием, молчит СКОЛЬКО
 # УГОДНО раз подряд, поэтому пустой ответ - повод шагнуть вниз, а не повторить.
-VARIANTS = [
-    ("схема + думание выключено", {"responseSchema": SCHEMA,
-                                   "thinkingConfig": {"thinkingBudget": 0}}),
-    ("схема, думание своё", {"responseSchema": SCHEMA}),
-    ("голый запрос", {}),
-]
+def _quiet_thinking(model):
+    """Чем гасить думание. У поколения 3.x - thinkingLevel, у прежних - бюджет.
+    Ошиблись - придёт 400, и запрос спустится на ступень ниже сам."""
+    return {"thinkingLevel": "LOW"} if re.search(r"-3[.\-]", model) else {"thinkingBudget": 0}
+
+
+def _variants(model):
+    return [
+        ("схема + думание тише", {"responseSchema": SCHEMA,
+                                  "thinkingConfig": _quiet_thinking(model)}),
+        ("схема, думание своё", {"responseSchema": SCHEMA}),
+        ("голый запрос", {}),
+    ]
+
+
+VARIANTS = _variants("")      # только чтобы знать длину лестницы
 
 # Какой вариант сработал для какой модели - помним, пока живёт контейнер.
 # Экономит два-три отказа 400 на каждом последующем запросе.
@@ -262,24 +277,38 @@ def _call(key, model, body, timeout):
 
 
 def _ask_gemini(key, audio_b64, prompt, deadline):
-    """Модели по очереди. Всё - в общий бюджет времени: лучше честный отказ
-    на 50-й секунде, чем убитая платформой функция без ответа.
+    """Модели по очереди, всё - в общий бюджет времени.
 
-    Пустой ответ два раза подряд - повод упростить запрос, а не долбить ту же
-    настройку. Модель, которая не умеет отвечать с выключенным думанием, будет
-    молчать сколько угодно раз; следующий вариант её оживляет."""
-    last = "нет доступных моделей"
+    Две особенности, купленные болью 22.08.2026:
+    - пустой ответ спускает запрос на ступень ниже, а не повторяет ту же
+      настройку: модель, которая не умеет молчать думание, молчит всегда;
+    - если Google отвечает «модель выключена, используйте такую-то», функция
+      читает названную замену прямо из отказа и идёт к ней. Иначе каждое
+      отключение модели у Google означает мёртвую кнопку у владельца.
+    """
+    errors = []
+    queue = list(MODELS)
+    tried = set()
 
-    for model in MODELS:
+    while queue:
+        model = queue.pop(0)
+        if model in tried:
+            continue
+        tried.add(model)
+        ladder = _variants(model)
+
         vi = _GOOD_VARIANT.get(model, 0)
         heavy = 0            # попытки, которые реально стоили времени (400 не в счёт)
         retried = False
-        while vi < len(VARIANTS) and heavy < len(VARIANTS):
+        why_here = "не пробовали"
+
+        while vi < len(ladder) and heavy < len(ladder):
             left = deadline - time.time()
             if left < MIN_ATTEMPT_SEC:
                 log("бюджет кончился, осталось %.1fс" % left)
-                return None, last if heavy else "не успели за отведённое время"
-            name, extra = VARIANTS[vi]
+                errors.append(why_here)
+                return None, "; ".join(errors) if heavy else "не успели за отведённое время"
+            name, extra = ladder[vi]
             body = _body(audio_b64, prompt, extra)
             timeout = max(MIN_ATTEMPT_SEC, min(ATTEMPT_SEC, left - 1.0))
             log("запрос", model, "[" + name + "]", "лимит %.0fс" % timeout,
@@ -288,7 +317,7 @@ def _ask_gemini(key, audio_b64, prompt, deadline):
             if data is not None:
                 _GOOD_VARIANT[model] = vi
                 return data, None
-            last = why
+            why_here = why
 
             if what == "variant":            # модель не поняла поле запроса (400)
                 vi += 1                      # дёшево, за попытку не считаем
@@ -303,7 +332,15 @@ def _ask_gemini(key, audio_b64, prompt, deadline):
                 continue
             break                            # 429, фильтр, повтор не помог
 
-    return None, last
+        errors.append(why_here)
+        # «This model is no longer available. Please update your code to use
+        #  models/gemini-3.6-flash» - берём подсказку и идём туда.
+        hint = re.search(r"use models/([A-Za-z0-9._-]+)", why_here)
+        if hint and hint.group(1) not in tried:
+            log("Google советует замену:", hint.group(1))
+            queue.insert(0, hint.group(1))
+
+    return None, "; ".join(errors) or "нет доступных моделей"
 
 
 class handler(BaseHTTPRequestHandler):
