@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/note.py": {
+      "maxDuration": 60
+    }
+  }
+}

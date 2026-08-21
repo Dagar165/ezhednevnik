@@ -794,8 +794,15 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     var zones = (window.ZONE_DEFS || []).map(function(z){ return { id: z.id, name: z.name }; });
     var full = url + '?today=' + encodeURIComponent(todayStr()) +
                '&zones=' + encodeURIComponent(JSON.stringify(zones));
-    return fetch(full, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav })
+    var stop = null, opts = { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav };
+    if (window.AbortController){
+      var ac = new AbortController();
+      opts.signal = ac.signal;
+      stop = setTimeout(function(){ ac.abort(); }, 75000);
+    }
+    return fetch(full, opts)
       .then(function(r){
+        if (stop) clearTimeout(stop);
         return r.text().then(function(body){
           var j = null; try { j = JSON.parse(body); } catch(e){}
           if (!r.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
@@ -806,12 +813,15 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   }
 
   // ---- запись не пропадает, даже если расшифровка упала ----
-  function stash(){
+  function stash(reason){
     if (pendingId) return;
     var d = new Date();
     var hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
     pendingId = uid();
-    S.inbox.push({ id: pendingId, text: '\u2753 голосовая не расшифровалась (' + hh + ':' + mm + ')',
+    // Причина живёт в самой записи: всплывашка исчезает, а разбираться приходится потом.
+    S.inbox.push({ id: pendingId,
+                   text: '\u2753 голосовая не расшифровалась (' + hh + ':' + mm + ') \u2014 ' +
+                         String(reason || 'причина неизвестна').slice(0, 70),
                    zone: null, created: todayStr(), done: false, plannedDate: null, raw: '' });
     save(); renderInbox(); renderInboxBadge();
   }
@@ -836,9 +846,11 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 
   function fail(e){
     busy = false;
+    var why = (e && e.message) || String(e);
+    if (/504|timeout|abort/i.test(why)) why = 'не уложилось по времени';
     paint('mic-err', '\u21BB', 'Не вышло - нажми, чтобы повторить');
-    toast('Не расшифровалось: ' + ((e && e.message) || e));
-    stash();
+    toast('Не расшифровалось: ' + why);
+    stash(why);
   }
 
   function handle(blob){
