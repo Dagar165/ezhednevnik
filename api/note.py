@@ -13,6 +13,7 @@
 import base64
 import json
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -40,7 +41,13 @@ PROMPT = u"""Ты - секретарь занятого руководителя
 Его сферы (id - name):
 {zones}
 
-Верни СТРОГО JSON с полями:
+Порядок работы жёсткий: СНАЧАЛА дословно запиши всё сказанное, и только потом
+выводи остальные поля ИЗ ЗАПИСАННОГО, а не из памяти о звуке.
+
+Верни СТРОГО JSON, поля именно в этом порядке:
+  "transcript" - полная расшифровка речи как есть, без сокращений и приглаживания.
+                 Русский язык. Имена и названия писать как слышится, не подменять
+                 похожими словами.
   "text"       - суть одной строкой, до 90 символов, как задача в ежедневнике.
                  Без вводных, без "нужно", сразу действие. Мат убрать, смысл оставить.
   "zone"       - id сферы из списка выше, или null если из речи это не следует.
@@ -48,7 +55,6 @@ PROMPT = u"""Ты - секретарь занятого руководителя
                  "15-го", "на следующей неделе". Иначе null. Прошедших дат не ставить.
   "understood" - true, если ты уверенно понял, ЧТО надо сделать. Иначе false.
   "note"       - если understood=false: чего не хватило, одной короткой фразой. Иначе "".
-  "transcript" - полная расшифровка речи как есть, без сокращений.
 
 Правила:
 - Не додумывай сферу и дату. Не уверен - null. Тихая ошибка хуже пустого поля.
@@ -69,8 +75,59 @@ def _origin_ok(origin):
     return any(host == s or host.endswith("." + s) for s in ALLOWED_SUFFIXES)
 
 
+# Коды, после которых имеет смысл повторить тот же запрос: перегрузка на
+# стороне Google, а не наша ошибка.
+RETRIABLE = (429, 500, 502, 503, 504)
+
+
+def _extract(raw):
+    """Достаём JSON из ответа. Возвращаем (данные, причина отказа)."""
+    fb = raw.get("promptFeedback") or {}
+    if fb.get("blockReason"):
+        return None, "запись отклонена фильтром (%s)" % fb["blockReason"]
+
+    cands = raw.get("candidates") or []
+    if not cands:
+        return None, "модель не вернула ответ"
+
+    cand = cands[0]
+    parts = ((cand.get("content") or {}).get("parts")) or []
+    if not parts:
+        # MAX_TOKENS, SAFETY, RECITATION - ответа нет, но причина известна
+        return None, "ответ пустой (%s)" % cand.get("finishReason", "без причины")
+
+    try:
+        return json.loads(parts[0].get("text") or ""), None
+    except Exception:
+        return None, "ответ не разобрался как JSON"
+
+
+def _call(key, model, body):
+    """Один запрос к одной модели. Возвращаем (данные, причина, стоит_ли_повторить)."""
+    req = urllib.request.Request(
+        ENDPOINT.format(model) + "?key=" + urllib.parse.quote(key),
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=55) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")[:200]
+        return None, "%s: HTTP %s %s" % (model, e.code, detail), e.code in RETRIABLE
+    except Exception as e:
+        return None, "%s: %s" % (model, e), True
+
+    data, why = _extract(raw)
+    if data is not None:
+        return data, None, False
+    # Пустой ответ иногда лечится простым повтором, блокировка фильтром - нет.
+    return None, "%s: %s" % (model, why), "фильтр" not in why
+
+
 def _ask_gemini(key, audio_b64, prompt):
-    """Пробуем модели по очереди. Возвращаем (данные, ошибка)."""
+    """Модели по очереди, каждая с одним повтором при срыве."""
     payload = {
         "contents": [{
             "role": "user",
@@ -85,29 +142,15 @@ def _ask_gemini(key, audio_b64, prompt):
     last = "нет доступных моделей"
 
     for model in MODELS:
-        req = urllib.request.Request(
-            ENDPOINT.format(model) + "?key=" + urllib.parse.quote(key),
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                raw = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", "replace")[:300]
-            last = "%s: HTTP %s %s" % (model, e.code, detail)
-            continue          # 404 на переименованной модели - пробуем следующую
-        except Exception as e:
-            last = "%s: %s" % (model, e)
-            continue
-
-        try:
-            text = raw["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text), None
-        except Exception as e:
-            last = "%s: не разобрал ответ (%s)" % (model, e)
-            continue
+        for attempt in (1, 2):
+            data, why, retriable = _call(key, model, body)
+            if data is not None:
+                return data, None
+            last = why
+            if not retriable:
+                break              # 404 или фильтр - повторять бессмысленно
+            if attempt == 1:
+                time.sleep(1.5)    # даём перегрузке рассосаться
 
     return None, last
 

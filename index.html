@@ -723,7 +723,10 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 
   var MAX_SEC = 120, RATE = 16000;
   var rec = null, chunks = [], stream = null, tick = null, t0 = 0;
-  var busy = false, lastWav = null, pendingId = null, started = 0;
+  // pendingId - пометка во Входящих, voiceKey - ключ звука в базе.
+  // Раздельно: пометку можно удалить руками, звук от этого не должен стать
+  // невидимым и молча перезапрашиваться.
+  var busy = false, lastWav = null, pendingId = null, voiceKey = null, started = 0, tries = 0;
 
   function paint(cls, label, title){
     var b = document.getElementById('mic-btn'); if (!b) return;
@@ -838,6 +841,50 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       });
   }
 
+  // ---- хранилище неудавшихся записей ----
+  // Отдельная база, НЕ ezhednevnik-db: у той версия 1, и поднятие версии
+  // сломало бы открытие базы самим приложением.
+  var VDB = 'ezhednevnik-voice', VSTORE = 'pending';
+  function vopen(){
+    return new Promise(function(res, rej){
+      if (!window.indexedDB) return rej(new Error('нет IndexedDB'));
+      var r = indexedDB.open(VDB, 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore(VSTORE, { keyPath: 'id' }); };
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function vput(rec){
+    return vopen().then(function(db){
+      return new Promise(function(res){
+        var tx = db.transaction(VSTORE, 'readwrite');
+        tx.objectStore(VSTORE).put(rec);
+        tx.oncomplete = function(){ res(); };
+        tx.onerror = function(){ res(); };
+      });
+    }).catch(function(){});
+  }
+  function vall(){
+    return vopen().then(function(db){
+      return new Promise(function(res){
+        var rq = db.transaction(VSTORE, 'readonly').objectStore(VSTORE).getAll();
+        rq.onsuccess = function(){ res(rq.result || []); };
+        rq.onerror = function(){ res([]); };
+      });
+    }).catch(function(){ return []; });
+  }
+  function vdel(id){
+    if (!id) return Promise.resolve();
+    return vopen().then(function(db){
+      return new Promise(function(res){
+        var tx = db.transaction(VSTORE, 'readwrite');
+        tx.objectStore(VSTORE).delete(id);
+        tx.oncomplete = function(){ res(); };
+        tx.onerror = function(){ res(); };
+      });
+    }).catch(function(){});
+  }
+
   // ---- запись не пропадает, даже если расшифровка упала ----
   function stash(reason){
     if (pendingId) return;
@@ -859,6 +906,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       S.inbox = S.inbox.filter(function(x){ return x.id !== pendingId; });
       pendingId = null;
     }
+    vdel(voiceKey); voiceKey = null; tries = 0;
     var text = (res.text || '').trim() || (res.transcript || '').slice(0, 90) || 'пустая запись';
     if (!res.understood) text = '\u2753 ' + text;
 
@@ -879,6 +927,9 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     paint('mic-err', '\u21BB', 'Не вышло - нажми, чтобы повторить');
     toast('Не расшифровалось: ' + why);
     stash(why);
+    // Звук ложится в базу: перезагрузка страницы его больше не убивает.
+    if (!voiceKey) voiceKey = pendingId;
+    if (lastWav && voiceKey) vput({ id: voiceKey, blob: lastWav, ts: Date.now(), tries: tries });
   }
 
   function handle(blob){
@@ -900,6 +951,28 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     }
     startRec();
   };
+
+  // Осталась запись с прошлого раза - пробуем её сами, но не бесконечно:
+  // три неудачи подряд и дальше только по кнопке, чтобы не молотить впустую.
+  vall().then(function(list){
+    var rec = list[0];
+    if (!rec || !rec.blob) return;
+    lastWav = rec.blob;
+    voiceKey = rec.id;
+    // Пометка могла быть удалена руками - тогда при неудаче заведётся новая.
+    pendingId = S.inbox.some(function(x){ return x.id === rec.id; }) ? rec.id : null;
+    tries = rec.tries || 0;
+    paint('mic-err', '\u21BB', 'Осталась нерасшифрованная запись');
+    if (tries >= 3){ toast('Запись так и не расшифровалась - нажми \u21BB'); return; }
+    setTimeout(function(){
+      if (busy || !lastWav) return;
+      tries++;
+      vput({ id: voiceKey, blob: lastWav, ts: rec.ts, tries: tries });
+      busy = true; started = Date.now();
+      paint('mic-busy', '\u2026', 'Дорасшифровываю прошлую запись');
+      send(lastWav).then(done).catch(fail);
+    }, 4000);
+  });
 
   // Подписи «сегодня/вчера» живут только до полуночи, а перерисовки при смене
   // суток в приложении нет: вкладка на телефоне не закрывается неделями.
