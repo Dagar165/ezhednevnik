@@ -170,7 +170,27 @@ console.log('\n11. Примеры задач с новой установки н
   ok('настоящая задача на месте', has(m.zones.ddt.tasks, 'зона: снять выезд'));
 })();
 
-console.log('\n12. Битые данные не роняют слияние');
+console.log('\n12. Один список дел: метро на новой модели');
+(function () {
+  function T(id, text, stamp, extra) { var t = { id: id, text: text, zone: null, day: null, box: 1, done: false, _u: stamp }; for (var k in (extra||{})) t[k] = extra[k]; return t; }
+  var phone = base(T20), pc = base(T13);
+  phone.tasks = [T('t1', 'общая задача', T9), T('p1', 'наговорил в метро', T20, { day: '2026-08-22', box: 0 })];
+  pc.tasks    = [T('t1', 'общая задача', T9), T('c1', 'добавил с компьютера', T13, { zone: 'ddt', box: 0 })];
+  var m = ctx.ezMergeStates(phone, pc, NOW);
+  ok('дело из метро на месте', has(m.tasks, 'наговорил в метро'));
+  ok('дело с компьютера на месте', has(m.tasks, 'добавил с компьютера'));
+  ok('общее не задвоилось', m.tasks.filter(function (t) { return t.id === 't1' }).length === 1);
+
+  var later = base(T20); later.tasks = [T('t1', 'общая задача', T20, { done: true, day: '2026-08-22', box: 0 })];
+  var m2 = ctx.ezMergeStates(later, pc, NOW);
+  ok('галочка у того, кто трогал позже', m2.tasks.filter(function (t) { return t.id === 't1' })[0].done === true);
+
+  var del = base(T20); del.tasks = []; del._tomb = { c1: T20 };
+  var m3 = ctx.ezMergeStates(del, pc, NOW);
+  ok('удалённое дело не воскресло', !has(m3.tasks, 'добавил с компьютера'));
+})();
+
+console.log('\n13. Битые данные не роняют слияние');
 (function () {
   var m = ctx.ezMergeStates(base(T20), { _updatedAt: T13 }, NOW);
   ok('половинчатая копия пережёвана', Array.isArray(m.today) && m.today.length === 1);

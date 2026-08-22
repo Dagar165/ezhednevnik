@@ -610,6 +610,32 @@ body.typing .float-inbox-btn { display: none; }
 /* Синяя рамка «есть заметка» важнее серой «есть дела» — ставим её последней. */
 .cal-day.has-note { border-color: #378ADD; }
 [data-theme="dark"] .cal-day.has-note { border-color: #3a5c8a; }
+/* ===== ОДИН СПИСОК ДЕЛ (28.08.2026) ===================================== */
+.task-row { display: block; padding: 0; border-bottom: 0.5px solid #f5f2ee; }
+.task-row:last-child { border-bottom: none; }
+.task-row .zt-line { align-items: flex-start; min-height: 56px; padding: 8px 0; gap: 12px; }
+.task-main { flex: 1; min-width: 0; cursor: pointer; }
+.task-text { font-size: 15px; line-height: 1.4; word-break: break-word; }
+.task-text.done { color: #aaa; text-decoration: line-through; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+
+/* Во «Входящих» строка — отдельная карточка, как была. */
+#inbox-list .task-row { background: #fff; border: 0.5px solid #e8e6e2; border-radius: 12px;
+                        margin-bottom: 8px; padding: 0 14px; }
+#inbox-list .task-row.voice-work { border-color: #f0cf94; background: #fffdf7; }
+#inbox-list .task-row.voice-fail { border-color: #f0c0b8; background: #fdf7f6; }
+#inbox-list .task-row.voice-dead { border-color: #ddd; background: #f7f7f5; }
+.task-row.voice-work .task-text { color: #8a6a1a; }
+.task-row.voice-dead .task-text { color: #999; }
+
+[data-theme="dark"] .task-row { border-bottom-color: #2a2a26; }
+[data-theme="dark"] #inbox-list .task-row { background: #1e1e1c; border-color: #34342f; }
+[data-theme="dark"] #inbox-list .task-row.voice-work { background: #262117; border-color: #5a4a1e; }
+[data-theme="dark"] #inbox-list .task-row.voice-fail { background: #2a1c1a; border-color: #5a2f28; }
+[data-theme="dark"] #inbox-list .task-row.voice-dead { background: #232320; border-color: #34342f; }
+[data-theme="dark"] .task-row.voice-work .task-text { color: #d8bf72; }
+[data-theme="dark"] .task-row.voice-dead .task-text { color: #97948c; }
+[data-theme="dark"] .task-text.done { color: #6b6862; }
 </style>
 </head>
 <body>
@@ -682,7 +708,15 @@ function todayStr(){return dateKey(new Date())}
 function todayLabel(){var d=new Date();return DAY_FULL[d.getDay()]+', '+d.getDate()+' '+MONTHS_RU2[d.getMonth()]}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(m){var e=document.getElementById('toast');e.textContent=m;e.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){e.classList.remove('show')},2200)}
-function initState(){var z={};ZONE_SEED.forEach(function(d){z[d.id]={tasks:(d.init||[]).map(function(t){return{id:uid(),_u:Date.now(),text:t,done:false,_seed:1}})}});return{today:[],zones:z,zoneDefs:ZONE_SEED.map(function(d){return{id:d.id,name:d.name,color:d.color,_u:Date.now()}}),schedule:defaultSchedule(),zoneOrder:ZONE_SEED.map(function(d){return d.id}),reminders:DEFAULT_REMINDERS.map(function(t){return{id:uid(),_u:Date.now(),text:t,done:false}}),archive:[],date:todayStr(),calendar:{},inbox:[],weekTasks:{},mainTask:{}}}
+function initState(){
+  // Первый запуск: сферы из заготовки и по паре примеров дел в каждой, чтобы
+  // экран не был пустым. Примеры помечены _seed — при первой синхронизации с
+  // настоящим ежедневником они в него не подмешаются.
+  var tasks=[];
+  ZONE_SEED.forEach(function(d){(d.init||[]).forEach(function(txt){
+    tasks.push({id:uid(),_u:Date.now(),text:txt,zone:d.id,day:null,box:0,done:false,createdAt:Date.now(),_seed:1});
+  })});
+  return{tasks:tasks,today:[],zones:{},zoneDefs:ZONE_SEED.map(function(d){return{id:d.id,name:d.name,color:d.color,_u:Date.now()}}),schedule:defaultSchedule(),zoneOrder:ZONE_SEED.map(function(d){return d.id}),reminders:DEFAULT_REMINDERS.map(function(t){return{id:uid(),_u:Date.now(),text:t,done:false}}),archive:[],date:todayStr(),calendar:{},inbox:[],weekTasks:{},mainTask:{}}}
 // === PERSISTENCE: localStorage + IndexedDB + URL hash ===
 /* --- MERGE-BEGIN — слияние двух ежедневников ------------------------------
    Зачем. Раньше в облако уезжал весь ежедневник одной строкой, и выигрывал тот,
@@ -776,7 +810,11 @@ function ezMergeStates(a,b,now){
   var tombs=ezMergeTombs(a._tomb,b._tomb,now);
   var newer=(tb>ta)?b:a,older=(tb>ta)?a:b;
   var out={},k;
-  out.today=ezMergeList(a.today,b.today,ta,tb,tombs);
+  out.tasks=ezMergeList(a.tasks,b.tasks,ta,tb,tombs);       // главный список дел
+  out.today=ezMergeList(a.today,b.today,ta,tb,tombs);       // ниже — старые списки:
+                                                            // на них может приехать
+                                                            // что-то с ещё не
+                                                            // обновившегося устройства
   out.inbox=ezMergeList(a.inbox,b.inbox,ta,tb,tombs);
   out.reminders=ezMergeList(a.reminders,b.reminders,ta,tb,tombs);
   out.archive=ezMergeList(a.archive,b.archive,ta,tb,tombs);
@@ -820,7 +858,43 @@ function idbOpen(cb){try{var req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=f
 function idbSave(data){idbOpen(function(db){if(!db)return;try{var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(data,DB_KEY)}catch(e){}})}
 function idbLoad(cb){idbOpen(function(db){if(!db){cb(null);return}try{var tx=db.transaction(DB_STORE,'readonly');var req=tx.objectStore(DB_STORE).get(DB_KEY);req.onsuccess=function(){cb(req.result||null)};req.onerror=function(){cb(null)}}catch(e){cb(null)}})}
 
-function patchState(s){if(!s)return;if(!s._tomb||typeof s._tomb!=='object')s._tomb={};if(!s.zones||typeof s.zones!=='object')s.zones={};if(!s.archive)s.archive=[];if(!s.reminders)s.reminders=DEFAULT_REMINDERS.map(function(t){return{id:uid(),_u:Date.now(),text:t,done:false}});if(!Array.isArray(s.zoneDefs)||!s.zoneDefs.length)s.zoneDefs=ZONE_SEED.map(function(d){return{id:d.id,name:d.name,color:d.color,_u:0}});if(!s.schedule)s.schedule=defaultSchedule();if(!s.zoneOrder)s.zoneOrder=s.zoneDefs.map(function(d){return d.id});if(!s.calendar)s.calendar={};if(!s.inbox)s.inbox=[];if(!s.weekTasks)s.weekTasks={};if(!s.mainTask)s.mainTask={};s.inbox.forEach(function(x){if(typeof x.plannedDate==='undefined')x.plannedDate=null});s.zoneDefs.forEach(function(d){if(!s.zones[d.id])s.zones[d.id]={tasks:[]};if(s.zoneOrder.indexOf(d.id)===-1)s.zoneOrder.push(d.id)})}
+/* Переезд на один список дел. Идентификаторы сохраняем — поэтому повторный
+   переезд (например, когда со второго устройства прилетели ещё не
+   переехавшие записи) ничего не задваивает: дело с таким id уже есть. */
+function migrateTasks(s){
+  if(!Array.isArray(s.tasks))s.tasks=[];
+  var have={};s.tasks.forEach(function(t){have[t.id]=1});
+  function take(o,extra){
+    if(!o||!o.id||have[o.id])return null;
+    var t={id:o.id,_u:o._u||0,text:o.text||'',zone:null,day:null,box:0,done:!!o.done,
+           createdAt:o.createdAt||0,created:o.created||''};
+    ['voice','vstate','vdetail','raw','_seed'].forEach(function(f){if(o[f]!==undefined)t[f]=o[f]});
+    for(var k in extra)t[k]=extra[k];
+    have[o.id]=1;s.tasks.push(t);return t;
+  }
+  (s.inbox||[]).forEach(function(x){take(x,{zone:x.zone||null,day:x.plannedDate||null,box:x.plannedDate?0:1})});
+  Object.keys(s.weekTasks||{}).forEach(function(dk){
+    (s.weekTasks[dk]||[]).forEach(function(x){take(x,{zone:x.zone||null,day:dk})});
+  });
+  Object.keys(s.zones||{}).forEach(function(zi){
+    (((s.zones||{})[zi]||{}).tasks||[]).forEach(function(x){take(x,{zone:zi})});
+  });
+  // «Сегодня» держало КОПИИ задач сферы со ссылкой sourceId. Оригинал уже
+  // переехал — копию не заводим, а просто ставим оригиналу сегодняшний день.
+  (s.today||[]).forEach(function(x){
+    if(x.sourceId){
+      var src=null;s.tasks.forEach(function(t){if(t.id===x.sourceId)src=t});
+      if(src){src.day=todayStr();if(x.done)src.done=true;return}
+    }
+    take(x,{zone:x.zoneId||null,day:todayStr()});
+  });
+  s.inbox=[];s.weekTasks={};s.today=[];
+  Object.keys(s.zones||{}).forEach(function(zi){s.zones[zi]={tasks:[]}});
+  // Ни дня, ни сферы, ни «входящих» — так дело стало бы невидимым.
+  s.tasks.forEach(function(t){if(!t.day&&!t.zone&&!t.done)t.box=1});
+}
+
+function patchState(s){if(!s)return;if(!s._tomb||typeof s._tomb!=='object')s._tomb={};if(!s.zones||typeof s.zones!=='object')s.zones={};if(!s.archive)s.archive=[];if(!s.reminders)s.reminders=DEFAULT_REMINDERS.map(function(t){return{id:uid(),_u:Date.now(),text:t,done:false}});if(!Array.isArray(s.zoneDefs)||!s.zoneDefs.length)s.zoneDefs=ZONE_SEED.map(function(d){return{id:d.id,name:d.name,color:d.color,_u:0}});if(!s.schedule)s.schedule=defaultSchedule();if(!s.zoneOrder)s.zoneOrder=s.zoneDefs.map(function(d){return d.id});if(!s.calendar)s.calendar={};if(!s.inbox)s.inbox=[];if(!s.weekTasks)s.weekTasks={};if(!s.mainTask)s.mainTask={};migrateTasks(s);s.zoneDefs.forEach(function(d){if(!s.zones[d.id])s.zones[d.id]={tasks:[]};if(s.zoneOrder.indexOf(d.id)===-1)s.zoneOrder.push(d.id)})}
 
 function load(){
   var loaded=false;
@@ -841,7 +915,7 @@ function load(){
   var appliedVer=null;try{appliedVer=localStorage.getItem('ez-embedded-applied')}catch(e){}
   if(typeof EMBEDDED_BACKUP_VERSION!=='undefined'&&appliedVer!==EMBEDDED_BACKUP_VERSION&&typeof EMBEDDED_BACKUP!=='undefined'&&EMBEDDED_BACKUP&&EMBEDDED_BACKUP.zones){
     // If there was already data, save it as pre-backup (safety net)
-    try{if(loaded&&S&&(S.today&&S.today.length>0||S.inbox&&S.inbox.length>0||(S.mainTask&&Object.keys(S.mainTask).length>0))){localStorage.setItem('ez-pre-backup-'+Date.now(),JSON.stringify(S))}}catch(e){}
+    try{if(loaded&&S&&((S.tasks&&S.tasks.length>0)||S.today&&S.today.length>0||S.inbox&&S.inbox.length>0||(S.mainTask&&Object.keys(S.mainTask).length>0))){localStorage.setItem('ez-pre-backup-'+Date.now(),JSON.stringify(S))}}catch(e){}
     try{S=JSON.parse(JSON.stringify(EMBEDDED_BACKUP));patchState(S);loaded=true;localStorage.setItem('ez-embedded-applied',EMBEDDED_BACKUP_VERSION);localStorage.setItem('ezhednevnik-v2',JSON.stringify(S));setTimeout(function(){toast('📦 Восстановлены задачи со скринов')},300)}catch(e){}
   }
   // 4) Fallback to fresh state
@@ -977,53 +1051,32 @@ function planDates(n){var r=[],d=new Date();for(var i=0;i<(n||14);i++){var x=new
 function planLabel(d){var t=todayStr(),k=dateKey(d);if(k===t)return 'Сегодня';var tm=new Date();tm.setDate(tm.getDate()+1);if(k===dateKey(tm))return 'Завтра';return DAY_SHORT[d.getDay()]+' '+d.getDate()+' '+MONTHS_RU2[d.getMonth()].slice(0,3)}
 /* --- конец блока раскладки ---------------------------------------------- */
 
-/* --- ДЕНЬ РЕШАЕТ, ГДЕ ЗАДАЧУ ВИДНО ---------------------------------------
-   Было так: наговорил «нужно сегодня» — расшифровка честно ставила дату, но
-   задача оставалась лежать во «Входящих», в разделе «Запланировано». В
-   карточке «Задачи на сегодня» её не было, в календаре тоже. То есть человек
-   сказал вслух «сегодня», а увидеть это мог только в третьей вкладке.
+/* --- ОДИН СПИСОК ДЕЛ -------------------------------------------------------
+   Раньше одно и то же дело жило в четырёх разных списках: «перенесённое в
+   сегодня» (S.today), «задачи сферы» (S.zones[].tasks), «дела дня»
+   (S.weekTasks[день]) и «входящие» (S.inbox). Каждый список — со своими
+   функциями добавления, удаления и отметки. Отсюда лезло всё подряд: дело
+   видно в дне, но не видно в сфере; отметил во «Входящих» — в «Сегодня» не
+   изменилось; «убрать с дня» удаляло насовсем.
 
-   Теперь правило одно: **задачу никуда не перекладываем, её показывают по
-   дате**. Одна и та же запись видна везде, где этот день:
-     - день = сегодня  -> карточка «Задачи на сегодня»;
-     - любой день      -> вкладка «Неделя» и клетка в «Календаре»;
-     - дня нет         -> «Входящие», то есть «ещё не разобрано».
-   Отсюда же ответ на «что за Запланировано»: разложенное по дням больше не
-   мозолит глаза во «Входящих», оно свёрнуто в одну строку.
+   Теперь список один: S.tasks. У дела три необязательных свойства, и они
+   решают, где его показывать:
 
-   Дела дня приходят из трёх мест, и это нормально: S.today (перенесённое из
-   сфер), S.weekTasks[день] (запланированное руками) и S.inbox с этим днём
-   (наговорённое). Собираем их в один список — данные при этом не двигаются,
-   поэтому и потерять нечего.                                               */
-function dayEntries(dk){
-  var out=[];
-  if(dk===todayStr())S.today.forEach(function(t){out.push({src:'today',item:t,dk:dk})});
-  (S.weekTasks[dk]||[]).forEach(function(t){out.push({src:'week',item:t,dk:dk})});
-  S.inbox.forEach(function(x){if(x.plannedDate===dk)out.push({src:'inbox',item:x,dk:dk})});
-  return out;
-}
-/* Просроченное — то, что поставили на прошедший день и не сделали. Раньше оно
-   пропадало отовсюду: в «Сегодня» не тот день, во «Входящих» уже разложено, в
-   «Неделе» видно только пока идёт та же неделя. Теперь собираем отдельно и
-   показываем в «Сегодня» свёрнутой строкой — видно, но сегодняшний день не
-   погребает (на годовом запасе таких набирается пара сотен). */
-function lateEntries(){
-  var out=[],today=todayStr();
-  Object.keys(S.weekTasks||{}).forEach(function(k){
-    if(k>=today)return;
-    (S.weekTasks[k]||[]).forEach(function(t){if(!t.done)out.push({src:'week',item:t,dk:k,late:1})});
-  });
-  S.inbox.forEach(function(x){if(x.plannedDate&&x.plannedDate<todayStr()&&!x.done)out.push({src:'inbox',item:x,dk:x.plannedDate,late:1})});
-  out.sort(function(a,b){return a.dk.localeCompare(b.dk)});
-  return out;
-}
-var _showLate=false;
-function toggleLate(){_showLate=!_showLate;render()}
-function dayOpenCount(dk){return dayEntries(dk).filter(function(e){return!e.item.done}).length}
-function entryZoneName(e){
-  if(e.src==='today')return e.item.zone||'';
-  var z=zoneById(e.item.zone);return z?z.name:'';
-}
+     zone  — сфера: дело видно в карточке этой сферы;
+     day   — день:  дело видно в «Сегодня»/«Неделе»/календаре на этот день;
+     box   — «ещё не разобрано»: дело лежит во «Входящих».
+
+   Экраны стали фильтрами по одному списку, а не отдельными хранилищами.
+   Железное правило: у дела всегда есть хотя бы один дом — если сняли и день,
+   и сферу, оно возвращается во «Входящие» (см. fixHome). Иначе запись стала бы
+   невидимой, а это ровно то, чего мы боимся больше всего.
+
+   Старые списки остаются в данных пустыми: на них может приехать что-то со
+   второго устройства, которое ещё не обновилось, — при загрузке это переедет
+   в S.tasks (см. migrateTasks). Идентификаторы при переезде сохраняются,
+   поэтому повторный переезд ничего не задваивает.                          */
+
+/* «Сегодня», «Завтра», «Ср 26 авг» — как день называется по-человечески. */
 function dayWord(dk){
   if(!dk)return '';
   var t=todayStr();if(dk===t)return 'Сегодня';
@@ -1031,151 +1084,148 @@ function dayWord(dk){
   var d=new Date(dk+'T12:00:00');
   return DAY_SHORT[d.getDay()]+' '+d.getDate()+' '+MONTHS_RU2[d.getMonth()].slice(0,3);
 }
-/* Галочка и «убрать» бьют по той записи, откуда строка пришла. */
-function dayToggle(src,id,dk){
-  if(src==='today')toggleToday(id);
-  else if(src==='week')toggleWeekTask(dk,id);
-  else toggleInboxDone(id);
-  rerenderActive();
+function taskById(id){var a=S.tasks||[];for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];return null}
+function fixHome(t){if(t&&!t.day&&!t.zone&&!t.done)t.box=1;return t}
+function addTask(o){
+  var t={id:uid(),_u:Date.now(),text:'',zone:null,day:null,box:0,done:false,createdAt:Date.now()};
+  for(var k in o)t[k]=o[k];
+  fixHome(t);S.tasks.push(t);return t;
 }
-function dayMove(src,id,dk,to,zi){
-  if(!to)return;
-  if(src==='zone'){
-    // Дело сферы встаёт на день: сфера у него сохраняется, поэтому из карточки
-    // сферы оно никуда не пропадает — только получает дату.
-    var zt=null;((S.zones[zi]||{}).tasks||[]).forEach(function(t){if(t.id===id)zt=t});
-    if(!zt)return;
-    if(!S.weekTasks[to])S.weekTasks[to]=[];
-    S.weekTasks[to].push({id:uid(),_u:Date.now(),text:zt.text,zone:zi,done:!!zt.done});
-    ezTomb(id);S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==id});
-    S.today.filter(function(t){return t.sourceId===id}).forEach(function(t){ezTomb(t.id)});
-    S.today=S.today.filter(function(t){return t.sourceId!==id});
-    save();rerenderActive();toast('→ '+dayWord(to));return;
-  }
-  if(src==='inbox'){moveInboxToDay(id,to);rerenderActive();return}
-  if(src==='week'){
-    var arr=S.weekTasks[dk]||[],got=null;
-    arr.forEach(function(t){if(t.id===id)got=t});
-    if(!got)return;
-    S.weekTasks[dk]=arr.filter(function(t){return t.id!==id});
-    if(!S.weekTasks[to])S.weekTasks[to]=[];
-    ezTouch(got);S.weekTasks[to].push(got);
-    save();rerenderActive();toast('→ '+dayWord(to));return;
-  }
-  // «Сегодня» из сферы: превращаем в задачу того дня, чтобы не плодить сущности
-  var t2=null;S.today.forEach(function(t){if(t.id===id)t2=t});
-  if(!t2)return;
-  if(!S.weekTasks[to])S.weekTasks[to]=[];
-  S.weekTasks[to].push({id:uid(),_u:Date.now(),text:t2.text,zone:t2.zoneId||null,done:!!t2.done});
-  ezTomb(id);S.today=S.today.filter(function(t){return t.id!==id});
-  save();rerenderActive();toast('→ '+dayWord(to));
-}
-function dayRemove(src,id,dk){
-  if(src==='today'){removeToday(id);rerenderActive();return}
-  if(src==='inbox'){unplanInbox(id);rerenderActive();return}   // обратно во «Входящие»
-  // Задача дня: возвращаем туда, откуда она пришла, а не выбрасываем.
-  var t=null;(S.weekTasks[dk]||[]).forEach(function(x){if(x.id===id)t=x});
-  if(!t)return;
-  S.weekTasks[dk]=(S.weekTasks[dk]||[]).filter(function(x){return x.id!==id});
-  if(!S.weekTasks[dk].length)delete S.weekTasks[dk];
-  ezTomb(id);
-  if(t.zone&&S.zones[t.zone]){
-    S.zones[t.zone].tasks.push({id:uid(),_u:Date.now(),text:t.text,done:!!t.done});
-    toast('↩ Вернулось в сферу «'+((zoneById(t.zone)||{}).name||'')+'»');
-  }else{
-    S.inbox.push({id:uid(),_u:Date.now(),text:t.text,zone:t.zone||null,created:todayStr(),
-                  createdAt:Date.now(),done:!!t.done,plannedDate:null});
-    toast('↩ Вернулось во «Входящие»');
-  }
-  save();rerenderActive();
-}
-function dayRemoveLabel(e){
-  if(e.src==='inbox')return '↺ Вернуть во входящие';
-  if(e.src==='today')return '✕ Убрать с сегодня';
-  var t=null;(S.weekTasks[e.dk]||[]).forEach(function(x){if(x.id===e.item.id)t=x});
-  return (t&&t.zone&&S.zones[t.zone])?'↩ Вернуть в сферу':'↩ Снять с дня';
-}
-/* Дела сферы. Раньше карточка сферы показывала только свой список задач, и
-   наговорённое со сферой «Личное» в ней не появлялось: в «Задачах на сегодня»
-   стояла пометка «Личное», а в самой «Личное» — пусто. Теперь правило второе,
-   парное к первому: **сфера решает, в какой карточке дело, день решает, когда**.
-   Одна и та же запись видна и там, и там; данные при этом не копируются. */
-function zoneEntries(zi){
-  var own=[],dated=[],loose=[];
-  ((S.zones[zi]||{}).tasks||[]).forEach(function(t){own.push({src:'zone',item:t,zi:zi,dk:null})});
-  Object.keys(S.weekTasks||{}).forEach(function(dk){
-    (S.weekTasks[dk]||[]).forEach(function(t){if(t.zone===zi&&!t.done)dated.push({src:'week',item:t,zi:zi,dk:dk})});
-  });
-  S.inbox.forEach(function(x){
-    if(x.zone!==zi||x.done)return;
-    if(x.plannedDate)dated.push({src:'inbox',item:x,zi:zi,dk:x.plannedDate});
-    else loose.push({src:'inbox',item:x,zi:zi,dk:null});
-  });
-  var today=todayStr();
-  dated.forEach(function(e){if(e.dk<today)e.late=1});
-  dated.sort(function(a,b){return a.dk.localeCompare(b.dk)});
-  return own.concat(dated,loose);
+function removeTask(id){ezTomb(id);S.tasks=S.tasks.filter(function(t){return t.id!==id})}
+function archiveTask(t,status){
+  S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:(zoneById(t.zone)||{}).name||'',
+                     zoneId:t.zone||null,status:status||'done',archivedAt:todayLabel(),archivedDate:todayStr()});
+  removeTask(t.id);
 }
 
-/* Одна строка дела — и в дне, и в сфере. Нажал на текст — снизу раскрылись
-   крупные кнопки, свои для каждого случая. */
-function entryRowHtml(e,where){
-  var it=e.item,open=(_openRow===it.id);
-  var chip='';
-  if(e.late)chip='<span class="day-chip late">⏳ '+dayWord(e.dk)+'</span>';
-  if(where==='day'){var zn=entryZoneName(e);if(zn)chip+='<span class="zone-badge">'+esc(zn)+'</span>'}
-  else if(e.dk&&!e.late)chip='<span class="day-chip">📅 '+dayWord(e.dk)+'</span>';
-  var onCheck=(e.src==='zone')?('toggleZone(\''+e.zi+'\',\''+it.id+'\')')
-                              :('dayToggle(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')');
-  var h='<div class="today-task'+(open?' row-open':'')+'" data-id="'+it.id+'">'
+/* Фильтры-экраны. */
+function boxTasks(){return S.tasks.filter(function(t){return t.box&&!t.done})}
+function dayTasks(dk){return S.tasks.filter(function(t){return t.day===dk})}
+function dayOpenCount(dk){return dayTasks(dk).filter(function(t){return!t.done}).length}
+function lateTasks(){
+  var d=todayStr();
+  return S.tasks.filter(function(t){return t.day&&t.day<d&&!t.done})
+                .sort(function(a,b){return a.day.localeCompare(b.day)});
+}
+function zoneTasks(zi){
+  var free=[],dated=[],done=[];
+  S.tasks.forEach(function(t){
+    if(t.zone!==zi)return;
+    if(t.done)done.push(t);else if(t.day)dated.push(t);else free.push(t);
+  });
+  dated.sort(function(a,b){return a.day.localeCompare(b.day)});
+  return free.concat(dated,done);
+}
+
+/* Действия над делом — одни и те же на всех экранах. */
+function rerenderAll(){
+  try{render()}catch(e){}
+  var a=document.querySelector('.tab-content.active');
+  try{if(a&&a.id==='inbox-tab')renderInbox()}catch(e){}
+  try{if(a&&a.id==='week-tab')renderWeek()}catch(e){}
+  try{if(document.getElementById('cal-overlay').classList.contains('open')){renderCal();renderCalDay()}}catch(e){}
+}
+function rerenderActive(){rerenderAll()}
+function taskToggle(id){
+  var t=taskById(id);if(!t)return;
+  t.done=!t.done;ezTouch(t);
+  if(t.done&&t.voice&&window.voiceForget)window.voiceForget(id);
+  if(!t.done)fixHome(t);
+  save();rerenderAll();
+}
+function taskSetDay(id,dk){
+  var t=taskById(id);if(!t)return;
+  t.day=dk||null;if(dk)t.box=0;
+  fixHome(t);ezTouch(t);save();rerenderAll();
+  toast(dk?'→ '+dayWord(dk)+(dk===todayStr()?' · смотри «Сегодня»':''):'День снят');
+}
+function taskSetZone(id,zi){
+  var t=taskById(id);if(!t)return;
+  t.zone=zi||null;if(zi)t.box=0;
+  fixHome(t);ezTouch(t);save();rerenderAll();
+  toast(zi?'→ сфера «'+((zoneById(zi)||{}).name||'')+'»':'Сфера снята');
+}
+function taskToBox(id){
+  var t=taskById(id);if(!t)return;
+  t.day=null;t.box=1;ezTouch(t);save();rerenderAll();toast('↺ Во «Входящие»');
+}
+function taskCancel(id){
+  var t=taskById(id);if(!t)return;
+  if(!confirm('Отменить «'+t.text+'»?'+String.fromCharCode(10)+String.fromCharCode(10)+'Уедет в архив, оттуда можно вернуть.'))return;
+  archiveTask(t,'cancelled');save();rerenderAll();toast('→ архив');
+}
+function taskDelete(id){
+  var t=taskById(id);if(!t)return;
+  var txt=t.text.length>80?t.text.slice(0,80)+'…':t.text;
+  if(!confirm('Удалить совсем?'+String.fromCharCode(10)+String.fromCharCode(10)+'«'+txt+'»'))return;
+  if(t.voice&&window.voiceForget)window.voiceForget(id);
+  removeTask(id);save();rerenderAll();toast('Удалено');
+}
+
+/* Одна строка дела — на всех экранах одинаковая. where: 'day' | 'zone' | 'box'.
+   Нажал на текст — снизу раскрылись крупные кнопки. */
+function taskRowHtml(t,where){
+  var open=(_openRow===t.id),late=(t.day&&t.day<todayStr()&&!t.done);
+  var zn=zoneById(t.zone),chips='';
+  if(where!=='zone'&&zn)chips+='<span class="zone-badge">'+esc(zn.name)+'</span>';
+  if(t.day&&(where!=='day'||late))chips+='<span class="day-chip'+(late?' late':'')+'">'+(late?'⏳ ':'📅 ')+dayWord(t.day)+'</span>';
+  if(where==='box')chips+=stampHtml(t);
+  var why=t.vdetail?'<div class="inbox-why">'+esc(t.vdetail)+'</div>':'';
+  var h='<div class="task-row'+(open?' row-open':'')+(t.voice?' voice-'+(t.vstate||'work'):'')+'" data-id="'+t.id+'">'
     +'<div class="zt-line">'
-    +'<div class="check-box'+(it.done?' done':'')+'" onclick="'+onCheck+'"></div>'
-    +'<div class="today-task-text'+(it.done?' done':'')+'" onclick="toggleRow(\''+it.id+'\')">'+esc(it.text)+'</div>'
-    +chip+'</div>';
-  if(open){
-    var opts='<option value="" disabled selected>Поставить на день…</option>';
-    planDates(14).forEach(function(d){var k=dateKey(d);if(k!==e.dk)opts+='<option value="'+k+'">'+planLabel(d)+'</option>'});
-    h+='<div class="row-actions">'
-      +'<select class="row-act select" onchange="dayMove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\',this.value,\''+(e.zi||'')+'\')">'+opts+'</select>';
-    if(e.src==='zone'){
-      h+='<button class="row-act primary" onclick="dayMove(\'zone\',\''+it.id+'\',null,todayStr(),\''+e.zi+'\')">→ На сегодня</button>'
-        +'<button class="row-act" onclick="cancelTask(\''+e.zi+'\',\''+it.id+'\')">⊘ Отменить</button>'
-        +'<button class="row-act danger" onclick="deleteZoneTask(\''+e.zi+'\',\''+it.id+'\')">✕ Удалить</button>';
-    } else {
-      h+='<button class="row-act" onclick="dayRemove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')">'
-        +dayRemoveLabel(e)+'</button>';
-      if(e.src==='week')h+='<button class="row-act danger" onclick="deleteWeekTask(\''+e.dk+'\',\''+it.id+'\')">✕ Удалить совсем</button>';
-      if(e.src==='inbox')h+='<button class="row-act danger" onclick="deleteInbox(\''+it.id+'\')">✕ Удалить совсем</button>';
-    }
-    h+='</div>';
-  }
+    +'<div class="check-box'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
+    +'<div class="task-main" onclick="toggleRow(\''+t.id+'\')">'
+    +'<div class="task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</div>'
+    +(chips?'<div class="task-meta">'+chips+'</div>':'')+why+'</div>'
+    +'<span class="ib-caret">'+(open?'⌃':'⌄')+'</span></div>';
+  if(open)h+=taskActionsHtml(t);
   return h+'</div>';
 }
-function dayRowHtml(e){return entryRowHtml(e,'day')}
-/* --- конец блока «день решает» ------------------------------------------ */
+function taskActionsHtml(t){
+  var days='<option value="" disabled selected>Поставить на день…</option>';
+  planDates(14).forEach(function(d){var k=dateKey(d);days+='<option value="'+k+'"'+(k===t.day?' selected':'')+'>'+planLabel(d)+'</option>'});
+  if(t.day)days+='<option value="none">— снять день</option>';
+  var zopts='<option value="" disabled selected>Сфера…</option>';
+  ZD().forEach(function(z){zopts+='<option value="'+z.id+'"'+(z.id===t.zone?' selected':'')+'>'+esc(z.name)+'</option>'});
+  if(t.zone)zopts+='<option value="none">— без сферы</option>';
+  var h='<div class="row-actions">'
+    +'<select class="row-act select" onchange="taskSetDay(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+days+'</select>'
+    +'<select class="row-act select" onchange="taskSetZone(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+zopts+'</select>';
+  if(t.voice&&window.voiceHasAudio&&window.voiceHasAudio(t.id))
+    h+='<button class="row-act" onclick="voicePlay(\''+t.id+'\')">'+(window.voicePlayingId===t.id?'⏸ Пауза':'▶ Послушать')+'</button>';
+  if(t.voice)h+='<button class="row-act" onclick="voiceRetry(\''+t.id+'\')">↻ Расшифровать ещё раз</button>';
+  if(!t.box)h+='<button class="row-act" onclick="taskToBox(\''+t.id+'\')">↺ Во «Входящие»</button>';
+  h+='<button class="row-act" onclick="taskCancel(\''+t.id+'\')">⊘ Отменить</button>'
+    +'<button class="row-act danger" onclick="taskDelete(\''+t.id+'\')">✕ Удалить</button></div>';
+  return h;
+}
+var _showLate=false;
+function toggleLate(){_showLate=!_showLate;render()}
+/* --- конец блока «один список дел» -------------------------------------- */
 
 // RENDER
+
 function render(){document.getElementById('date-label').textContent=todayLabel();if(new Date().getDay()===0)document.getElementById('review-banner').style.display='block';renderMainTask();
-var ds0=todayStr(),ent=dayEntries(ds0),late=lateEntries(),h1='';
-var ac=ent.filter(function(e){return!e.item.done}).length;
+var ds0=todayStr(),ent=dayTasks(ds0),late=lateTasks(),h1='';
+var ac=ent.filter(function(t){return!t.done}).length;
 document.getElementById('today-count').textContent=ac?ac+' задач':'';
 if(!ent.length&&!late.length)h1='<div class="top-empty">Пусто. Наговори во «Входящих» или возьми из сферы ниже.</div>';
-else ent.forEach(function(e){h1+=dayRowHtml(e)});
+else ent.forEach(function(t){h1+=taskRowHtml(t,'day')});
 if(late.length){
   h1+='<div class="late-fold" onclick="toggleLate()">⏳ Просрочено · '+late.length+'<span>'+(_showLate?'скрыть':'показать')+'</span></div>';
-  if(_showLate)late.forEach(function(e){h1+=dayRowHtml(e)});
+  if(_showLate)late.forEach(function(t){h1+=taskRowHtml(t,'day')});
 }
 document.getElementById('today-tasks').innerHTML=h1;
 var h2='';S.reminders.forEach(function(r){h2+='<div class="reminder-item"><div class="r-check'+(r.done?' done':'')+'" onclick="toggleReminder(\''+r.id+'\')"></div><div class="reminder-text'+(r.done?' done':'')+'">'+esc(r.text)+'</div><button class="r-del" onclick="deleteReminder(\''+r.id+'\')">✕</button></div>'});
 document.getElementById('remind-tasks').innerHTML=h2||'<div class="top-empty">Нет</div>';
 var h3='';(S.zoneOrder||[]).forEach(function(zi){
-  var zn=zoneById(zi);if(!zn||!S.zones[zi])return;
-  var ent=zoneEntries(zi),cnt=ent.filter(function(e){return!e.item.done}).length;
+  var zn=zoneById(zi);if(!zn)return;
+  var ts=zoneTasks(zi),cnt=ts.filter(function(t){return!t.done}).length;
   var open=!!_openZones[zi],body='';
   if(open){
     var th='';
-    if(!ent.length)th='<div class="zone-empty">пусто</div>';
-    else ent.forEach(function(e){th+=entryRowHtml(e,'zone')});
+    if(!ts.length)th='<div class="zone-empty">пусто</div>';
+    else ts.forEach(function(t){th+=taskRowHtml(t,'zone')});
     body='<div class="zone-tasks" id="zone-tasks-'+zi+'">'+th+'</div>'
       +'<div class="add-row"><input class="add-input" id="inp-'+zi+'" placeholder="задача..." onkeydown="if(event.key===\'Enter\')addZoneTask(\''+zi+'\')"><button class="add-btn" onclick="addZoneTask(\''+zi+'\')">+</button></div>';
   }
@@ -1202,18 +1252,18 @@ h+='<div class="week-nav"><button class="cal-nav-btn" onclick="weekShift(-1)">�
 var fx=(SCH().fixed||{})[dow]||[],fxH='';if(fx.length){fxH='<div class="week-fixed">';fx.forEach(function(f){fxH+='<span class="week-fixed-tag" style="background:'+f.c+'15;color:'+f.c+';border-color:'+f.c+'33">'+(f.o?'<i>':'')+f.t+' '+esc(f.l)+(f.o?'</i>':'')+'</span>'});fxH+='</div>'}
 var fr=(SCH().free||{})[dow]||[],frH='';if(fr.length){frH='<div class="week-free">';fr.forEach(function(f){frH+='<span class="week-free-tag">🟢 '+esc(f)+'</span>'});frH+='</div>'}
 var mt=S.mainTask[dk],mH='';if(mt)mH='<div class="week-main-task"><div class="small-check'+(mt.done?' done':'')+'" onclick="toggleWeekMain(\''+dk+'\')"></div><span style="'+(mt.done?'text-decoration:line-through;color:#bbb':'')+'">⭐ '+esc(mt.text)+'</span></div>';
-var wt=S.weekTasks[dk]||[],wtH='';wt.forEach(function(t){var zn=null;ZD().forEach(function(z){if(z.id===t.zone)zn=z});wtH+='<div class="week-task-item"><div class="small-check'+(t.done?' done':'')+'" onclick="toggleWeekTask(\''+dk+'\',\''+t.id+'\')"></div><span class="week-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'+(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')+'<button class="z-btn del-t" title="Снять с дня (вернётся в сферу или во входящие)" onclick="dayRemove(\'week\',\''+t.id+'\',\''+dk+'\')">✕</button></div>'});
-var ibTasks=S.inbox.filter(function(x){return x.plannedDate===dk});ibTasks.forEach(function(t){var zn=null;ZD().forEach(function(z){if(z.id===t.zone)zn=z});wtH+='<div class="week-task-item from-inbox"><div class="small-check'+(t.done?' done':'')+'" onclick="toggleInboxDone(\''+t.id+'\')"></div><span class="week-task-inbox-icon" title="Из входящих">📥</span><span class="week-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'+(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')+'<button class="z-btn del-t" title="Снять с дня (вернётся во входящие)" onclick="unplanInbox(\''+t.id+'\')">✕</button></div>'});
+var wtH='';dayTasks(dk).forEach(function(t){var zn=zoneById(t.zone);
+  wtH+='<div class="week-task-item"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
+    +'<span class="week-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'
+    +(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
+    +'<button class="z-btn del-t" title="Снять с дня — дело останется в своей сфере или уйдёт во «Входящие»" onclick="taskSetDay(\''+t.id+'\',null)">✕</button></div>'});
 var aH='<div class="week-add-row"><input class="add-input" id="week-inp-'+dk+'" placeholder="+ задача" onkeydown="if(event.key===\'Enter\')addWeekTask(\''+dk+'\')"><select class="add-input" id="week-zone-'+dk+'" style="flex:0 0 auto;max-width:110px">';ZD().forEach(function(z){aH+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});aH+='</select><button class="add-btn" onclick="addWeekTask(\''+dk+'\')">+</button></div>';
 h+='<div class="'+cls+'"><div class="week-day-head"><span class="week-day-name">'+(isT?'● ':'')+dn+'<span class="week-day-date">'+dl+'</span></span>'+tagH+'</div><div class="week-day-body">'+fxH+frH+mH+wtH+aH+'</div></div>'});document.getElementById('week-container').innerHTML=h}
-function addWeekTask(dk){var i=document.getElementById('week-inp-'+dk),z=document.getElementById('week-zone-'+dk),t=i.value.trim();if(!t)return;if(!S.weekTasks[dk])S.weekTasks[dk]=[];S.weekTasks[dk].push({id:uid(),_u:Date.now(),text:t,zone:z.value,done:false});i.value='';save();renderWeek()}
-function toggleWeekTask(dk,id){(S.weekTasks[dk]||[]).forEach(function(t){if(t.id===id){t.done=!t.done;ezTouch(t)}});save();renderWeek()}
-function deleteWeekTask(dk,id){
-  var t=null;(S.weekTasks[dk]||[]).forEach(function(x){if(x.id===id)t=x});
-  if(t&&!confirm('Удалить совсем?'+String.fromCharCode(10)+String.fromCharCode(10)+'«'+t.text+'»'))return;
-  ezTomb(id);S.weekTasks[dk]=(S.weekTasks[dk]||[]).filter(function(x){return x.id!==id});
-  if(!(S.weekTasks[dk]||[]).length)delete S.weekTasks[dk];
-  save();rerenderActive();
+function addWeekTask(dk){
+  var i=document.getElementById('week-inp-'+dk),z=document.getElementById('week-zone-'+dk),t=i.value.trim();
+  if(!t)return;
+  addTask({text:t,zone:z.value||null,day:dk});
+  i.value='';save();rerenderAll();
 }
 function toggleWeekMain(dk){if(S.mainTask[dk]){S.mainTask[dk].done=!S.mainTask[dk].done;ezTouch(S.mainTask[dk]);save();renderWeek();if(dk===todayStr())renderMainTask()}}
 
@@ -1244,115 +1294,49 @@ function stampHtml(item){
   return '<span class="inbox-stamp" title="Когда записано">' + esc(label) + '</span>';
 }
 function renderInbox(){
-  var all=S.inbox.filter(function(x){return!x.done});
-  var unplanned=all.filter(function(x){return!x.plannedDate});
-  var planned=all.filter(function(x){return x.plannedDate});
+  var all=boxTasks();
   document.getElementById('inbox-count').textContent='';
-  var sel=document.getElementById('inbox-zone-select');sel.innerHTML='<option value="">Сфера?</option>';ZD().forEach(function(z){sel.innerHTML+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});
-  var dates=getWeekDates();
-  /* Строка «Входящих» была 111 px и всё равно переносилась: галочка, текст,
-     сфера, штамп времени и четыре кнопки не влезают в ширину телефона.
-     Теперь в строке только галочка, текст и мелкая подпись, а действия
-     раскрываются по нажатию — и они крупные, в них попадаешь на ходу. */
-  function renderItem(item,isPlanned){
-    var zn=zoneById(item.zone);
-    var zH=zn?'<span class="inbox-item-zone" style="background:'+zn.color+'15;color:'+zn.color+'">'+esc(zn.name)+'</span>':'';
-    var open=(_openRow===item.id);
-    var vCls=item.voice?' voice-'+(item.vstate||'work'):'';
-    var planTag='';
-    if(isPlanned){var pd=new Date(item.plannedDate+'T12:00:00');planTag='<span class="inbox-planned-tag">📅 '+DAY_SHORT[pd.getDay()]+' '+pd.getDate()+'</span>';}
-    var meta=zH+planTag+stampHtml(item);
-    var why=item.vdetail?'<div class="inbox-why">'+esc(item.vdetail)+'</div>':'';
-    var line='<div class="ib-line">'
-      +'<div class="small-check'+(item.done?' done':'')+'" onclick="toggleInboxDone(\''+item.id+'\')"></div>'
-      +'<div class="ib-main" onclick="toggleRow(\''+item.id+'\')">'
-      +'<div class="inbox-item-text'+(item.done?' done':'')+'">'+esc(item.text)+'</div>'
-      +(meta?'<div class="inbox-meta">'+meta+'</div>':'')+why+'</div>'
-      +'<span class="ib-caret">'+(open?'⌃':'⌄')+'</span></div>';
-    var acts='';
-    if(open){
-      var opts='<option value="" disabled'+(isPlanned?'':' selected')+'>Положить на день…</option>';
-      planDates(14).forEach(function(d){var dk=dateKey(d);opts+='<option value="'+dk+'"'+(dk===item.plannedDate?' selected':'')+'>'+planLabel(d)+'</option>'});
-      acts='<div class="row-actions">'
-        +'<select class="row-act select" onchange="moveInboxToDay(\''+item.id+'\',this.value)">'+opts+'</select>';
-      if(item.voice&&window.voiceHasAudio&&window.voiceHasAudio(item.id))
-        acts+='<button class="row-act" onclick="voicePlay(\''+item.id+'\')">'+(window.voicePlayingId===item.id?'⏸ Пауза':'▶ Послушать')+'</button>';
-      if(item.voice)
-        acts+='<button class="row-act" onclick="voiceRetry(\''+item.id+'\')">↻ Расшифровать ещё раз</button>';
-      if(isPlanned)
-        acts+='<button class="row-act" onclick="unplanInbox(\''+item.id+'\')">↺ Снять с дня</button>';
-      acts+='<button class="row-act danger" onclick="deleteInbox(\''+item.id+'\')">✕ Удалить совсем</button></div>';
-    }
-    return '<div class="inbox-item'+vCls+(isPlanned?' planned':'')+(open?' row-open':'')+'">'+line+acts+'</div>';
-  }
-  /* Раньше здесь двумя равными списками лежали «не распределено» и
-     «запланировано», и второй никуда не девался — входящие никогда не были
-     нулём, а зачем он нужен, было непонятно. Теперь разложенное по дням
-     свёрнуто в одну строку: его место — в «Сегодня», «Неделе» и календаре. */
+  var sel=document.getElementById('inbox-zone-select');
+  sel.innerHTML='<option value="">Сфера?</option>';
+  ZD().forEach(function(z){sel.innerHTML+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});
+  /* Во «Входящих» лежит только неразобранное — то, у чего нет ни дня, ни
+     решения. Как только делу назначили день или сферу, оно уходит отсюда и
+     появляется там: в «Сегодня», в «Неделе», в календаре, в карточке сферы.
+     Поэтому «входящие = 0» — достижимая цель, а не вечный список. */
   var h='';
-  if(!all.length){h='<div class="inbox-empty">Пусто. Так держать.</div>';}
+  if(!all.length)h='<div class="inbox-empty">Пусто. Так держать.</div>';
   else{
-    if(unplanned.length){h+='<div class="inbox-subhead">Разобрать · '+unplanned.length+'</div>';unplanned.forEach(function(x){h+=renderItem(x,false)});}
-    else h+='<div class="inbox-empty" style="color:#1D7A44">✓ Всё разложено по дням. Что на сегодня — в «Сегодня», остальное — в «Неделе» и календаре.</div>';
-    if(planned.length){
-      h+='<div class="planned-fold" onclick="togglePlanned()">📅 Разложено по дням · '+planned.length
-        +'<span>'+(_showPlanned?'скрыть':'показать')+'</span></div>';
-      if(_showPlanned){
-        var byDay={},days=[];
-        planned.sort(function(a,b){return a.plannedDate.localeCompare(b.plannedDate)}).forEach(function(x){
-          if(!byDay[x.plannedDate]){byDay[x.plannedDate]=[];days.push(x.plannedDate)}
-          byDay[x.plannedDate].push(x);
-        });
-        days.forEach(function(dk){
-          h+='<div class="inbox-subhead">'+dayWord(dk)+'</div>';
-          byDay[dk].forEach(function(x){h+=renderItem(x,true)});
-        });
-      }
-    }
+    h+='<div class="inbox-subhead">Разобрать · '+all.length+'</div>';
+    all.forEach(function(t){h+=taskRowHtml(t,'box')});
   }
   document.getElementById('inbox-list').innerHTML=h;
 }
-/* Значок на вкладке считает только неразобранное: разложенное по дням уже
-   стоит в своём дне и требовать внимания не должно. */
-function renderInboxBadge(){var unplan=S.inbox.filter(function(x){return!x.done&&!x.plannedDate}).length;document.getElementById('inbox-tab-btn').innerHTML='Входящие'+(unplan?'<span class="tab-badge">'+unplan+'</span>':'')}
-var _showPlanned=false;
-function togglePlanned(){_showPlanned=!_showPlanned;renderInbox()}
-function addInbox(){var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();if(!t)return;S.inbox.push({id:uid(),_u:Date.now(),text:t,zone:z.value||null,created:todayStr(),createdAt:Date.now(),done:false,plannedDate:null});i.value='';z.value='';save();renderInbox();renderInboxBadge();toast('Записано')}
-function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;if(item.voice&&window.voiceForget)window.voiceForget(id);ezTomb(id);S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
-function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;ezTouch(item);save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('→ '+dayWord(dk)+(dk===todayStr()?' · смотри «Сегодня»':''))}
-function unplanInbox(iid){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item)return;item.plannedDate=null;ezTouch(item);save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Снято с дня')}
-function toggleInboxDone(iid){S.inbox.forEach(function(x){if(x.id===iid){x.done=!x.done;ezTouch(x);if(x.done&&x.voice&&window.voiceForget)window.voiceForget(iid)}});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek()}
+function renderInboxBadge(){
+  var n=boxTasks().length;
+  document.getElementById('inbox-tab-btn').innerHTML='Входящие'+(n?'<span class="tab-badge">'+n+'</span>':'');
+}
+function addInbox(){
+  var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();
+  if(!t)return;
+  // Сфера, выбранная руками при вводе, — это уже решение: дело уходит в сферу.
+  addTask({text:t,zone:z.value||null,box:z.value?0:1,created:todayStr()});
+  i.value='';z.value='';save();rerenderAll();toast('Записано');
+}
 
 // ZONES
-function inToday(id){for(var i=0;i<S.today.length;i++)if(S.today[i].sourceId===id)return true;return false}
-function addToToday(zi,ti){if(inToday(ti))return;var zn=null,tk=null;ZD().forEach(function(z){if(z.id===zi)zn=z});S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk)return;S.today.push({id:uid(),_u:Date.now(),text:tk.text,zone:zn?zn.name:zi,zoneId:zi,sourceId:ti,done:false});save();render()}
-function removeToday(id){ezTomb(id);S.today=S.today.filter(function(t){return t.id!==id});save();render()}
-function toggleToday(id){S.today.forEach(function(t){if(t.id===id){t.done=!t.done;ezTouch(t);if(t.sourceId&&S.zones[t.zoneId]){S.zones[t.zoneId].tasks.forEach(function(z){if(z.id===t.sourceId){z.done=t.done;ezTouch(z)}})}}});save();render()}
-function toggleZone(zi,ti){S.zones[zi].tasks.forEach(function(t){if(t.id===ti){t.done=!t.done;ezTouch(t);S.today.forEach(function(td){if(td.sourceId===ti){td.done=t.done;ezTouch(td)}})}});save();render()}
-function addZoneTask(zi){var e=document.getElementById('inp-'+zi),t=e.value.trim();if(!t)return;S.zones[zi].tasks.push({id:uid(),_u:Date.now(),text:t,done:false});e.value='';save();render()}
-function cancelTask(zi,ti){var zn=null,tk=null;ZD().forEach(function(z){if(z.id===zi)zn=z});S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk||!confirm('Отменить «'+tk.text+'»?'))return;S.archive.unshift({id:uid(),_u:Date.now(),text:tk.text,zone:zn?zn.name:zi,zoneId:zi,sourceId:ti,status:'cancelled',archivedAt:todayLabel(),archivedDate:todayStr()});ezTomb(ti);S.today.forEach(function(t){if(t.sourceId===ti)ezTomb(t.id)});S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==ti});S.today=S.today.filter(function(t){return t.sourceId!==ti});save();render();toast('→ архив')}
-function deleteZoneTask(zi,ti){var tk=null;S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk||!confirm('Удалить «'+tk.text+'»?'))return;ezTomb(ti);S.today.forEach(function(t){if(t.sourceId===ti)ezTomb(t.id)});S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==ti});S.today=S.today.filter(function(t){return t.sourceId!==ti});save();render()}
+function addZoneTask(zi){
+  var e=document.getElementById('inp-'+zi),t=e.value.trim();if(!t)return;
+  addTask({text:t,zone:zi});e.value='';save();rerenderAll();
+}
 
 // NEW DAY
-function newDay(){if(!confirm('Новый день?\nВыполненные → архив, ежедневные → сброс.'))return;var l=todayLabel(),ds=todayStr(),c=0;S.today.filter(function(t){return t.done}).forEach(function(t){ezTomb(t.id);if(t.sourceId)ezTomb(t.sourceId);S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:t.zone||'',zoneId:t.zoneId,sourceId:t.sourceId,status:'done',archivedAt:l,archivedDate:ds});if(t.zoneId&&t.sourceId&&S.zones[t.zoneId])S.zones[t.zoneId].tasks=S.zones[t.zoneId].tasks.filter(function(z){return z.id!==t.sourceId});c++});S.today=S.today.filter(function(t){return!t.done});ZD().forEach(function(z){if(!S.zones[z.id])return;var k=[];S.zones[z.id].tasks.forEach(function(t){if(t.done){ezTomb(t.id);S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:z.name,zoneId:z.id,sourceId:t.id,status:'done',archivedAt:l,archivedDate:ds});c++}else k.push(t)});S.zones[z.id].tasks=k});/* Раньше «Новый день» разбирал только «Сегодня» и сферы. Наговорённое и
-   запланированное на день оставалось отмеченным навсегда: выполненные висели
-   в памяти, а на экране показывались зачёркнутыми. Теперь в архив уезжает всё
-   сделанное — из входящих и из дней по сегодняшний включительно. */
-S.inbox.filter(function(x){return x.done}).forEach(function(x){
-  S.archive.unshift({id:uid(),_u:Date.now(),text:x.text,zone:(zoneById(x.zone)||{}).name||'',zoneId:x.zone||null,status:'done',archivedAt:l,archivedDate:ds});
-  ezTomb(x.id);c++;
-});
-S.inbox=S.inbox.filter(function(x){return!x.done});
-Object.keys(S.weekTasks).forEach(function(dk){
-  if(dk>ds)return;                                  // будущие дни не трогаем
-  var keep=[];
-  (S.weekTasks[dk]||[]).forEach(function(t){
-    if(t.done){S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:(zoneById(t.zone)||{}).name||'',zoneId:t.zone||null,status:'done',archivedAt:l,archivedDate:ds});ezTomb(t.id);c++}
-    else keep.push(t);
-  });
-  if(keep.length)S.weekTasks[dk]=keep;else delete S.weekTasks[dk];
-});
-S.reminders.forEach(function(r){r.done=false});S.date=ds;save();render();toast(c+' → архив')}
+function newDay(){
+  if(!confirm('Новый день?'+String.fromCharCode(10)+'Выполненные → архив, ежедневные → сброс.'))return;
+  var c=0;
+  S.tasks.filter(function(t){return t.done}).forEach(function(t){archiveTask(t,'done');c++});
+  S.reminders.forEach(function(r){r.done=false});
+  S.date=todayStr();save();rerenderAll();toast(c+' → архив');
+}
 
 // REMINDERS
 function toggleReminder(id){S.reminders.forEach(function(r){if(r.id===id){r.done=!r.done;ezTouch(r)}});save();render()}
@@ -1364,17 +1348,9 @@ function openArchive(){renderArchive();document.getElementById('arch-overlay').c
 function closeArchive(){document.getElementById('arch-overlay').classList.remove('open')}
 function restoreFromArchive(ai){
   var item=null;S.archive.forEach(function(a){if(a.id===ai)item=a});if(!item)return;
-  var back;
-  if(item.zoneId&&S.zones[item.zoneId]){
-    S.zones[item.zoneId].tasks.push({id:uid(),_u:Date.now(),text:item.text,done:false});
-    back='в сферу «'+((zoneById(item.zoneId)||{}).name||item.zone||'')+'»';
-  }else{
-    // Сферы нет (её удалили или у записи её и не было) — кладём во «Входящие».
-    // Раньше в этом месте запись просто исчезала.
-    S.inbox.push({id:uid(),_u:Date.now(),text:item.text,zone:null,created:todayStr(),
-                  createdAt:Date.now(),done:false,plannedDate:null});
-    back='во «Входящие»';
-  }
+  var back,zi=(item.zoneId&&zoneById(item.zoneId))?item.zoneId:null;
+  addTask({text:item.text,zone:zi,day:null,box:zi?0:1});
+  back=zi?('в сферу «'+((zoneById(zi)||{}).name||'')+'»'):'во «Входящие»';
   ezTomb(ai);S.archive=S.archive.filter(function(a){return a.id!==ai});
   save();renderArchive();render();try{renderInbox();renderInboxBadge()}catch(e){}
   toast('Возвращено '+back);
@@ -1390,18 +1366,11 @@ function exportData(){var d=JSON.stringify(S,null,2),b=new Blob([d],{type:'appli
 
 function applyImportedState(p){
   if(!p||typeof p!=='object'){alert('Это не похоже на JSON ежедневника');return false}
-  if(!p.zones||typeof p.zones!=='object'){alert('В файле нет поля zones — это не бэкап ежедневника');return false}
-  S=p;
-  if(!S.today)S.today=[];
-  if(!S.archive)S.archive=[];
-  if(!S.reminders)S.reminders=[];
-  if(!S.calendar)S.calendar={};
-  if(!S.inbox)S.inbox=[];
-  if(!S.weekTasks)S.weekTasks={};
-  if(!S.mainTask)S.mainTask={};
-  patchState(S);
-  S.inbox.forEach(function(x){if(typeof x.plannedDate==='undefined')x.plannedDate=null});
-  save();render();closeBackup();toast('✓ Восстановлено');
+  // Бэкапы бывают двух видов: старые (со списками inbox/zones) и новые (tasks).
+  // Годятся оба — patchState переведёт старый на новый лад сам.
+  if(!p.tasks&&!p.zones){alert('Это не похоже на бэкап ежедневника');return false}
+  S=p;patchState(S);
+  save();rerenderAll();closeBackup();toast('✓ Восстановлено');
   return true;
 }
 
@@ -1477,7 +1446,7 @@ var calYear,calMonth,calSelectedDate;
 function calDigest(dk){
   var out=[],note=S.calendar[dk];
   if(note)out.push(note);
-  dayEntries(dk).filter(function(e){return!e.item.done}).forEach(function(e){out.push('• '+e.item.text)});
+  dayTasks(dk).filter(function(t){return!t.done}).forEach(function(t){out.push('• '+t.text)});
   return out.join(String.fromCharCode(10));
 }
 function renderCalNotifs(){
@@ -1518,27 +1487,25 @@ function calSelectDay(dk){
 }
 function renderCalDay(){
   var box=document.getElementById('cal-day-tasks');if(!box)return;
-  var dk=calSelectedDate,ent=dayEntries(dk),h='';
+  var dk=calSelectedDate,ts=dayTasks(dk),h='';
   var mt=S.mainTask[dk];
   if(mt)h+='<div class="cal-task"><div class="small-check'+(mt.done?' done':'')+'" onclick="toggleWeekMain(\''+dk+'\');renderCalDay();renderCal()"></div>'
     +'<span class="cal-task-text'+(mt.done?' done':'')+'">⭐ '+esc(mt.text)+'</span></div>';
-  if(!ent.length&&!mt)h+='<div class="set-empty">Дел на этот день нет</div>';
-  ent.forEach(function(e){
-    h+='<div class="cal-task"><div class="small-check'+(e.item.done?' done':'')+'" onclick="calToggle(\''+e.src+'\',\''+e.item.id+'\')"></div>'
-      +'<span class="cal-task-text'+(e.item.done?' done':'')+'">'+esc(e.item.text)+'</span>'
-      +(entryZoneName(e)?'<span class="week-task-zone">'+esc(entryZoneName(e))+'</span>':'')
-      +'<button class="z-btn del-t" title="Убрать с этого дня" onclick="calUnplan(\''+e.src+'\',\''+e.item.id+'\')">✕</button></div>';
+  if(!ts.length&&!mt)h+='<div class="set-empty">Дел на этот день нет</div>';
+  ts.forEach(function(t){
+    var zn=zoneById(t.zone);
+    h+='<div class="cal-task"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
+      +'<span class="cal-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'
+      +(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
+      +'<button class="z-btn del-t" title="Снять с этого дня" onclick="taskSetDay(\''+t.id+'\',null)">✕</button></div>';
   });
   h+='<div class="set-row" style="margin-top:8px"><input class="add-input" id="cal-task-input" placeholder="+ дело на этот день" onkeydown="if(event.key===\'Enter\')calAddTask()"><button class="add-btn" onclick="calAddTask()">+</button></div>';
   box.innerHTML=h;
 }
-function calToggle(src,id){dayToggle(src,id,calSelectedDate);renderCalDay();renderCal()}
-function calUnplan(src,id){dayRemove(src,id,calSelectedDate);renderCalDay();renderCal()}
 function calAddTask(){
   var i=document.getElementById('cal-task-input'),t=(i.value||'').trim();if(!t)return;
-  if(!S.weekTasks[calSelectedDate])S.weekTasks[calSelectedDate]=[];
-  S.weekTasks[calSelectedDate].push({id:uid(),_u:Date.now(),text:t,zone:null,done:false});
-  i.value='';save();renderCalDay();renderCal();rerenderActive();toast('→ '+dayWord(calSelectedDate));
+  addTask({text:t,day:calSelectedDate});
+  i.value='';save();rerenderAll();toast('→ '+dayWord(calSelectedDate));
 }
 function calSaveNote(){var t=document.getElementById('cal-textarea').value.trim();if(t)S.calendar[calSelectedDate]=t;else{ezTomb('cal:'+calSelectedDate);delete S.calendar[calSelectedDate]}save();renderCal();renderCalNotifs();toast('Сохранено')}
 function calDeleteNote(){ezTomb('cal:'+calSelectedDate);delete S.calendar[calSelectedDate];save();renderCal();renderCalNotifs();toast('Удалено')}
@@ -1574,31 +1541,25 @@ function addZone(){
   if(!name){toast('Впиши название сферы');return}
   var id=uid();
   S.zoneDefs.push({id:id,name:name,color:'#888780',_u:Date.now()});
-  S.zones[id]={tasks:[]};
   if(S.zoneOrder.indexOf(id)===-1)S.zoneOrder.push(id);
   el.value='';save();renderSettings();toast('Сфера добавлена');
 }
 function deleteZone(id){
   var z=zoneById(id);if(!z)return;
-  var tasks=(S.zones[id]&&S.zones[id].tasks)||[];
-  var live=tasks.filter(function(t){return!t.done}).length;
-  var q=live?('В сфере «'+z.name+'» ещё '+live+' невыполненных задач.\nОни уедут в архив — оттуда их можно вернуть. Убрать сферу?')
+  var live=S.tasks.filter(function(t){return t.zone===id&&!t.done}).length;
+  var q=live?('В сфере «'+z.name+'» ещё '+live+' невыполненных дел.'+String.fromCharCode(10)+'Те, у которых нет дня, уедут в архив — оттуда их можно вернуть. Убрать сферу?')
             :('Убрать сферу «'+z.name+'»?');
   if(!confirm(q))return;
-  // Задачи не выбрасываем молча: всё, что было в сфере, ложится в архив.
-  tasks.forEach(function(t){
-    S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:z.name,zoneId:id,sourceId:t.id,status:'cancelled',archivedAt:todayLabel(),archivedDate:todayStr()});
-    ezTomb(t.id);
-  });
-  S.zones[id]={tasks:[]};
-  // Дела, которые ссылались на эту сферу, остаются жить — просто без сферы.
-  S.inbox.forEach(function(x){if(x.zone===id){x.zone=null;ezTouch(x)}});
-  Object.keys(S.weekTasks||{}).forEach(function(dk){
-    (S.weekTasks[dk]||[]).forEach(function(t){if(t.zone===id){t.zone=null;ezTouch(t)}});
+  // Дела сферы не выбрасываем молча: у кого есть день — тот остаётся жить в
+  // своём дне и просто теряет сферу; у кого дня нет — уезжает в архив.
+  S.tasks.filter(function(t){return t.zone===id}).forEach(function(t){
+    if(t.day||t.box){t.zone=null;fixHome(t);ezTouch(t)}
+    else archiveTask(t,'cancelled');
   });
   S.zoneDefs=S.zoneDefs.filter(function(d){return d.id!==id});
   S.zoneOrder=S.zoneOrder.filter(function(x){return x!==id});
-  ezTomb(id);save();renderSettings();toast(live?'Сфера убрана, задачи в архиве':'Сфера убрана');
+  if(S.zones)delete S.zones[id];
+  ezTomb(id);save();renderSettings();rerenderAll();toast('Сфера убрана');
 }
 
 function schTouch(){SCH()._u=Date.now();save()}
@@ -1644,7 +1605,7 @@ function renderSettings(){
   h+='<div class="set-block"><div class="set-head">Сферы</div>'
     +'<div class="set-note">Так называются столбцы на «Сегодня». Порядок меняется перетаскиванием там же, за ☰.</div>';
   ZD().forEach(function(z){
-    var cnt=((S.zones[z.id]&&S.zones[z.id].tasks)||[]).filter(function(t){return!t.done}).length;
+    var cnt=S.tasks.filter(function(t){return t.zone===z.id&&!t.done}).length;
     h+='<div class="set-row">'
       +'<input type="color" class="set-color" value="'+(z.color||'#888780')+'" onchange="setZoneColor(\''+z.id+'\',this.value)">'
       +'<input class="add-input" value="'+esc(z.name)+'" onchange="setZoneName(\''+z.id+'\',this.value)">'
@@ -1962,7 +1923,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     b.title = title || '';
   }
   function pendingCount(){
-    return S.inbox.filter(function(x){ return x.voice && !x.done; }).length;
+    return S.tasks.filter(function(x){ return x.voice && !x.done; }).length;
   }
   function idle(){
     if (rec && rec.state === 'recording') return;
@@ -2041,12 +2002,11 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
 
   // ---- строка во «Входящих» ----
   function item(id){
-    for (var i = 0; i < S.inbox.length; i++) if (S.inbox[i].id === id) return S.inbox[i];
-    return null;
+    return taskById(id);
   }
   function redraw(){
     save();
-    try { renderInbox(); renderInboxBadge(); } catch(e){}
+    try { rerenderAll(); } catch(e){}
     primeUrls();
     idle();
   }
@@ -2181,9 +2141,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
           // она и остаётся, поэтому её не выбрасываем.
           if (ok) delete mem[id];
           // 2) видимая строка - до отправки, а не после успеха
-          S.inbox.push({ id: id, text: '🎤 расшифровывается…', zone: null,
-                         created: todayStr(), createdAt: now, done: false, plannedDate: null,
-                         raw: '', voice: 1, vstate: 'work' });
+          addTask({ id: id, text: '🎤 расшифровывается…', box: 1,
+                    created: todayStr(), createdAt: now, raw: '', voice: 1, vstate: 'work' });
           if (quiet)  mark(id, 'fail', '🎤 микрофон молчал (' + hhmm(now) + ') — в записи тишина', 'громкость ' + w.peak.toFixed(4) + ', ' + w.secs + ' с');
           if (toobig) mark(id, 'fail', '🎤 запись слишком длинная (' + hhmm(now) + ')', w.blob.size + ' Б при пределе ' + MAX_BODY);
           redraw();
@@ -2198,10 +2157,9 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       // Даже перекодировка может упасть. Терять уже нечего, кроме самого факта -
       // пусть он останется записью, а не всплывашкой на две секунды.
       var id = uid(), now = Date.now();
-      S.inbox.push({ id: id, text: '❓ голосовая не записалась (' + hhmm(now) + ') — ' +
-                           String((e && e.message) || e).slice(0, 70),
-                     zone: null, created: todayStr(), createdAt: now, done: false,
-                     plannedDate: null, raw: '', voice: 1, vstate: 'dead' });
+      addTask({ id: id, text: '❓ голосовая не записалась (' + hhmm(now) + ') — ' +
+                      String((e && e.message) || e).slice(0, 70),
+                box: 1, created: todayStr(), createdAt: now, raw: '', voice: 1, vstate: 'dead' });
       redraw();
       toast('Не записалось: ' + ((e && e.message) || e));
     });
@@ -2251,14 +2209,17 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       if (it2){
         it2.text = text;
         it2.zone = res.zone || null;
-        it2.plannedDate = res.date || null;
+        it2.day = res.date || null;
+        if (it2.day) it2.box = 0;          // услышали день — дело разобрано
         it2.raw = res.transcript || '';
+        it2._u = Date.now();
+        fixHome(it2);
         delete it2.voice; delete it2.vstate; delete it2.vdetail;
       } else {
         // Строку удалили руками, пока шла расшифровка - результат всё равно не теряем.
-        S.inbox.push({ id: uid(), text: text, zone: res.zone || null, created: todayStr(),
-                       createdAt: r.ts || Date.now(), done: false, plannedDate: res.date || null,
-                       raw: res.transcript || '' });
+        addTask({ text: text, zone: res.zone || null, created: todayStr(),
+                  createdAt: r.ts || Date.now(), day: res.date || null,
+                  box: res.date ? 0 : 1, raw: res.transcript || '' });
       }
       redraw();
       var z = zoneName(res.zone);
@@ -2322,7 +2283,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     list.forEach(function(r){ known[r.id] = r; });
     // Строка есть, а звука нет - значит она приехала синхронизацией с другого
     // устройства. Пусть честно об этом скажет, а не висит «расшифровывается».
-    S.inbox.forEach(function(x){
+    S.tasks.forEach(function(x){
       if (x.voice && x.vstate === 'work' && !known[x.id]){
         x.vstate = 'dead';
         x.text = '❓ голосовая осталась на другом устройстве (' + hhmm(x.createdAt) + ')';
