@@ -642,6 +642,10 @@ body.typing .float-inbox-btn { display: none; }
 .row-quick:active { background: #eaf2fb; }
 [data-theme="dark"] .row-quick { color: #9cc4f0; }
 [data-theme="dark"] .row-quick:active { background: #1b2a3d; }
+.row-quick.back { color: #85827c; font-size: 18px; }
+.row-quick.back:active { background: #f0eeea; }
+[data-theme="dark"] .row-quick.back { color: #97948c; }
+[data-theme="dark"] .row-quick.back:active { background: #2a2a26; }
 
 /* ===== ПРАВКА ТЕКСТА ЗАПИСИ (29.08.2026) ================================ */
 .task-edit { padding: 10px 0 12px; }
@@ -1166,7 +1170,8 @@ function taskSetDay(id,dk){
   var t=taskById(id);if(!t)return;
   t.day=dk||null;if(dk)t.box=0;
   fixHome(t);ezTouch(t);save();rerenderAll();
-  toast(dk?'→ '+dayWord(dk)+(dk===todayStr()?' · смотри «Сегодня»':''):'День снят');
+  if(dk)toast('→ '+dayWord(dk)+(dk===todayStr()?' · смотри «Сегодня»':''));
+  else{var zn=zoneById(t.zone);toast(zn?('↩ Вернулось в сферу «'+zn.name+'»'):'↩ Вернулось во «Входящие»')}
 }
 function taskSetZone(id,zi){
   var t=taskById(id);if(!t)return;
@@ -1250,6 +1255,12 @@ function taskRowHtml(t,where){
        того, что уже стоит на сегодня. */
     +((where!=='day'&&!t.done&&t.day!==todayStr())
        ?'<button class="row-quick" title="Поставить на сегодня" onclick="event.stopPropagation();taskSetDay(\''+t.id+'\',todayStr())">→</button>':'')
+    /* Парная кнопка: убрать дело с дня. Не удалить — оно возвращается туда,
+       откуда пришло: в свою сферу, а если сферы нет — во «Входящие». Без неё
+       единственный способ снять дело с дня был спрятан в списке дней, и найти
+       его было нельзя. */
+    +((t.day&&!t.done)
+       ?'<button class="row-quick back" title="Убрать с дня — вернётся в свою сферу" onclick="event.stopPropagation();taskSetDay(\''+t.id+'\',null)">↩</button>':'')
     +'<span class="ib-caret">'+(open?'⌃':'⌄')+'</span></div>';
   if(open)h+=taskActionsHtml(t);
   return h+'</div>';
@@ -1257,12 +1268,14 @@ function taskRowHtml(t,where){
 function taskActionsHtml(t){
   var days='<option value="" disabled selected>Поставить на день…</option>';
   planDates(14).forEach(function(d){var k=dateKey(d);days+='<option value="'+k+'"'+(k===t.day?' selected':'')+'>'+planLabel(d)+'</option>'});
-  if(t.day)days+='<option value="none">— снять день</option>';
+
   var zopts='<option value="" disabled selected>Сфера…</option>';
   ZD().forEach(function(z){zopts+='<option value="'+z.id+'"'+(z.id===t.zone?' selected':'')+'>'+esc(z.name)+'</option>'});
   if(t.zone)zopts+='<option value="none">— без сферы</option>';
   var h='<div class="row-actions">'
     +((t.day!==todayStr()&&!t.done)?'<button class="row-act primary" onclick="taskSetDay(\''+t.id+'\',todayStr())">→ На сегодня</button>':'')
+    +(t.day?('<button class="row-act" onclick="taskSetDay(\''+t.id+'\',null)">↩ Убрать с дня'
+             +(zoneById(t.zone)?(' — вернётся в «'+esc((zoneById(t.zone)||{}).name)+'»'):' — уйдёт во «Входящие»')+'</button>'):'')
     +'<button class="row-act" onclick="taskEdit(\''+t.id+'\')">✎ Изменить текст</button>'
     +'<select class="row-act select" onchange="taskSetDay(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+days+'</select>'
     +'<select class="row-act select" onchange="taskSetZone(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+zopts+'</select>';
