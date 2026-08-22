@@ -9,6 +9,8 @@
 на ходу, прямо из браузера:
 
     fetch('/_mode?m=ok')     - расшифровка «удалась»
+    fetch('/_mode?m=today')  - «удалась» и услышала дату «сегодня»
+    fetch('/_mode?m=soon')   - «удалась» и услышала дату через 9 дней
     fetch('/_mode?m=fail')   - сервер отвечает отказом 502 с причиной
     fetch('/_mode?m=lag')    - ответ приходит через 8 секунд
     fetch('/_mode?m=dead')   - сервер не отвечает вовсе (70 с)
@@ -22,6 +24,7 @@ import json
 import os
 import sys
 import time
+from datetime import date, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -74,9 +77,16 @@ class H(SimpleHTTPRequestHandler):
             time.sleep(8)
         if MODE["m"] == "dead":
             time.sleep(70)
+        # m=today / m=soon - расшифровка «услышала» дату. Так проверяется, что
+        # наговорённое с датой доезжает до карточки дня и до календаря.
+        note_date = None
+        if MODE["m"] == "today":
+            note_date = date.today().isoformat()
+        elif MODE["m"] == "soon":
+            note_date = (date.today() + timedelta(days=9)).isoformat()
         return self._json(200, {
             "text": "Позвонить Келеку про 3D-модели",
-            "zone": "freelance", "date": None, "understood": True, "note": "",
+            "zone": "freelance", "date": note_date, "understood": True, "note": "",
             "transcript": "Так, надо позвонить Келеку насчёт 3D-моделей, он там ждёт.",
             "elapsed": 1.2,
         })
