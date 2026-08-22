@@ -5,7 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ежедневник</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1a1a18">
+<meta name="theme-color" content="#f0eeea" id="theme-color-meta">
+<script>
+/* Тему ставим до того, как браузер нарисует страницу: иначе тёмный ежедневник
+   при каждом запуске моргает белым. Хранится на устройстве (не в облаке):
+   дома и на телефоне человек хочет разного. */
+(function(){try{
+  var t=localStorage.getItem('ez-theme')||'auto';
+  var dark=(t==='dark')||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+}catch(e){}})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ежедневник">
@@ -370,6 +380,137 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 body { padding-bottom: 90px; }
 .hint { font-size: 13px; }
 .week-day-card.is-weekend { opacity: 1; }
+/* ===== ПРАВКИ ПО ЖИВОМУ ТЕЛЕФОНУ (23.08.2026) ============================ */
+
+/* 1. Окна ⚙ и 💾 не прокручивались: у .backup-modal стоял overflow:hidden без
+      высоты, и всё, что не влезло в экран, просто обрезалось — до кнопок было
+      не добраться. Теперь шапка окна на месте, а содержимое крутится. */
+.backup-modal { max-height: 88vh; display: flex; flex-direction: column; }
+.backup-head { flex-shrink: 0; }
+.backup-body { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-height: 0;
+               padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+.backup-overlay { align-items: flex-end; padding: 0; }
+.backup-overlay .backup-modal { border-radius: 18px 18px 0 0; max-width: 560px; }
+@media (min-height: 720px) and (min-width: 560px) {
+  .backup-overlay { align-items: center; padding: 20px; }
+  .backup-overlay .backup-modal { border-radius: 18px; }
+}
+
+/* 2. Главная задача дня: список сфер распирало по ширине, и чёрная кнопка ✓
+      уезжала на отдельную строку одна — большим квадратом посреди пустоты.
+      Теперь поле занимает строку целиком, а сфера и ✓ стоят парой под ним. */
+.main-task-form { gap: 8px; }
+.main-task-form input { flex: 1 1 100%; min-width: 0; }
+.main-task-form select { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.main-task-form .add-btn { flex: 0 0 46px; }
+
+/* 3. Тёмная тема. Светлую не трогаем: все правила ниже включаются только при
+      data-theme="dark", поэтому «как было» откатывается снятием темы. */
+[data-theme="dark"] body { background: #131312; color: #ecebe6; }
+[data-theme="dark"] .top-card, [data-theme="dark"] .zone-card, [data-theme="dark"] .week-day-card,
+[data-theme="dark"] .main-task-section, [data-theme="dark"] .plan-step, [data-theme="dark"] .plan-reminder,
+[data-theme="dark"] .inbox-item, [data-theme="dark"] .arch-modal, [data-theme="dark"] .backup-modal,
+[data-theme="dark"] .cal-modal, [data-theme="dark"] .menu-card, [data-theme="dark"] .cal-popover,
+[data-theme="dark"] .cal-day { background: #1e1e1c; border-color: #34342f; }
+[data-theme="dark"] .main-task-section { border-color: #4a3230; }
+[data-theme="dark"] .today-card { border-color: #4a3230; }
+[data-theme="dark"] .today-card .top-card-header { background: #271e1d; border-bottom-color: #3a2c2a; }
+[data-theme="dark"] .week-day-card.is-today { border-color: #4a3230; }
+[data-theme="dark"] .week-day-card.is-today .week-day-head { background: #271e1d; }
+[data-theme="dark"] .top-card-header, [data-theme="dark"] .zone-head, [data-theme="dark"] .week-day-head,
+[data-theme="dark"] .arch-modal-head, [data-theme="dark"] .backup-head, [data-theme="dark"] .cal-modal-head,
+[data-theme="dark"] .add-remind-row { border-color: #2c2c28; }
+[data-theme="dark"] .zone-card.open .zone-head { background: #232320; }
+[data-theme="dark"] .today-task, [data-theme="dark"] .reminder-item, [data-theme="dark"] .zone-task,
+[data-theme="dark"] .week-task-item { border-bottom-color: #2a2a26; }
+
+/* поля, кнопки-строки, переключатели */
+[data-theme="dark"] .add-input, [data-theme="dark"] .row-act, [data-theme="dark"] .set-day,
+[data-theme="dark"] .set-chip, [data-theme="dark"] .week-add-row select, [data-theme="dark"] textarea,
+[data-theme="dark"] .plan-step-btn, [data-theme="dark"] .hdr-btn, [data-theme="dark"] .set-color
+{ background: #262623; border-color: #34342f; color: #ecebe6; }
+[data-theme="dark"] .add-input:focus { background: #2c2c28; border-color: #55554d; }
+[data-theme="dark"] .add-input::placeholder { color: #6b6862; }
+[data-theme="dark"] .set-day.on, [data-theme="dark"] .set-chip.on { background: #ecebe6; color: #131312; border-color: #ecebe6; }
+[data-theme="dark"] .add-btn { background: #ecebe6; color: #131312; }
+[data-theme="dark"] .row-act.primary { background: #1b2a3d; border-color: #2c4463; color: #9cc4f0; }
+[data-theme="dark"] .row-act.danger { background: #2e1c1a; border-color: #4a2c28; color: #e79b90; }
+[data-theme="dark"] .menu-item { color: #ecebe6; }
+[data-theme="dark"] .menu-item.danger { color: #e79b90; }
+[data-theme="dark"] .menu-item:active { background: #2a2a26; }
+[data-theme="dark"] .menu-item.close { border-top-color: #2c2c28; }
+
+/* приглушённые подписи */
+[data-theme="dark"] .date-label, [data-theme="dark"] .zone-cnt, [data-theme="dark"] .inbox-stamp,
+[data-theme="dark"] .main-task-zone, [data-theme="dark"] .week-day-date, [data-theme="dark"] .arch-modal-count,
+[data-theme="dark"] .plan-step-desc, [data-theme="dark"] .plan-reminder p, [data-theme="dark"] .set-note,
+[data-theme="dark"] .inbox-hint, [data-theme="dark"] .hint, [data-theme="dark"] .main-task-hint,
+[data-theme="dark"] .tab-btn, [data-theme="dark"] .week-task-zone, [data-theme="dark"] .zone-badge,
+[data-theme="dark"] .set-cnt, [data-theme="dark"] .zone-empty, [data-theme="dark"] .top-empty,
+[data-theme="dark"] .set-empty, [data-theme="dark"] .ib-caret, [data-theme="dark"] .zone-caret,
+[data-theme="dark"] .cal-dow, [data-theme="dark"] .inbox-subhead, [data-theme="dark"] .inbox-section-label,
+[data-theme="dark"] .set-sub, [data-theme="dark"] .cal-popover-head { color: #97948c; }
+[data-theme="dark"] .zone-name, [data-theme="dark"] .tab-btn.active, [data-theme="dark"] .cal-day-num,
+[data-theme="dark"] .cal-popover-text, [data-theme="dark"] .arch-task-text, [data-theme="dark"] .set-head
+{ color: #ecebe6; }
+[data-theme="dark"] .tab-btn.active { border-bottom-color: #ecebe6; }
+[data-theme="dark"] .tabs-bar { border-bottom-color: #2c2c28; }
+[data-theme="dark"] .zone-badge, [data-theme="dark"] .week-task-zone { background: #2a2a26; }
+[data-theme="dark"] .t-remove, [data-theme="dark"] .r-del, [data-theme="dark"] .z-btn { color: #55534d; }
+[data-theme="dark"] .drag-handle { color: #55534d; }
+[data-theme="dark"] .check-box, [data-theme="dark"] .small-check, [data-theme="dark"] .r-check
+{ background: #262623; border-color: #45443e; }
+[data-theme="dark"] .check-box.done, [data-theme="dark"] .small-check.done, [data-theme="dark"] .r-check.done,
+[data-theme="dark"] .main-task-check.done { background: #16281e; border-color: #2e8b57; }
+[data-theme="dark"] .main-task-check { background: #262623; }
+[data-theme="dark"] .row-open, [data-theme="dark"] .inbox-item.planned { background: #232320; }
+[data-theme="dark"] .week-day-card.is-weekend { opacity: 1; }
+[data-theme="dark"] .arch-task, [data-theme="dark"] .arch-date-label { border-color: #2c2c28; }
+[data-theme="dark"] .arch-date-label, [data-theme="dark"] .arch-zone-badge { background: #232320; color: #97948c; }
+[data-theme="dark"] .review-banner { background: #262117; border-color: #5a4a1e; color: #d8bf72; }
+[data-theme="dark"] .plan-header { background: #262117; border-color: #5a4a1e; }
+[data-theme="dark"] .plan-title { color: #e0c877; }
+[data-theme="dark"] .plan-subtitle { color: #b09a55; }
+[data-theme="dark"] .week-free-tag { background: #16281e; color: #6fc79a; }
+[data-theme="dark"] .week-main-task { background: #271e1d; }
+[data-theme="dark"] .inbox-item.voice-work { background: #262117; border-color: #5a4a1e; }
+[data-theme="dark"] .inbox-item.voice-fail { background: #2a1c1a; border-color: #5a2f28; }
+[data-theme="dark"] .inbox-item.voice-dead { background: #232320; border-color: #34342f; }
+[data-theme="dark"] .inbox-planned-tag { background: #1b2a3d; color: #9cc4f0; }
+[data-theme="dark"] .cal-day.today { background: #271e1d; border-color: #4a3230; }
+[data-theme="dark"] .cal-day.empty { background: none; border-color: transparent; }
+[data-theme="dark"] .set-free { background: #16281e; color: #6fc79a; }
+[data-theme="dark"] .float-inbox-btn { background: #ecebe6; color: #131312; }
+[data-theme="dark"] .toast { background: #ecebe6; color: #131312; }
+[data-theme="dark"] #update-bar { background: #ecebe6; color: #131312; }
+[data-theme="dark"] #update-bar button { background: #131312; color: #ecebe6; }
+[data-theme="dark"] input[type="color"] { padding: 2px; }
+/* тёмно-красный «главной задачи» на тёмном фоне читался как грязь — 2,6 к 1 */
+[data-theme="dark"] .main-task-label, [data-theme="dark"] .today-card .top-card-title,
+[data-theme="dark"] .today-count, [data-theme="dark"] .main-task-check { color: #ef9b8a; }
+[data-theme="dark"] .main-task-check { border-color: #ef9b8a; }
+[data-theme="dark"] .week-tag.heavy { background: #2e1c1a; color: #e79b90; }
+[data-theme="dark"] .week-tag.rest { background: #241d2e; color: #b79ae0; }
+[data-theme="dark"] .week-tag.plan { background: #262117; color: #d8bf72; }
+/* остальные светлые пятна: архив, календарь, окно данных */
+[data-theme="dark"] .plan-reminder strong { color: #ecebe6; }
+[data-theme="dark"] .arch-status.done, [data-theme="dark"] .arch-done-icon { background: #16281e; color: #6fc79a; }
+[data-theme="dark"] .arch-status.cancelled, [data-theme="dark"] .arch-cancel-icon { background: #2b2016; color: #d79a5a; }
+[data-theme="dark"] .restore-btn { background: #262623; border-color: #34342f; color: #b6b2a9; }
+[data-theme="dark"] .arch-empty, [data-theme="dark"] .backup-desc, [data-theme="dark"] .backup-info { color: #97948c; }
+[data-theme="dark"] .backup-btn.export { background: #ecebe6; color: #131312; }
+[data-theme="dark"] .backup-btn.import { background: #2c2c28; color: #ecebe6; }
+[data-theme="dark"] .backup-divider { border-top-color: #2c2c28; }
+[data-theme="dark"] .cal-nav-btn { background: #262623; color: #ecebe6; }
+[data-theme="dark"] .cal-day.has-note { background: #17202e; border-color: #3a5c8a; }
+[data-theme="dark"] .cal-day.today .cal-day-num { color: #ef9b8a; }
+[data-theme="dark"] .cal-save-btn { background: #ecebe6; color: #131312; }
+[data-theme="dark"] .cal-del-btn { border-color: #4a2c28; color: #e79b90; }
+[data-theme="dark"] .cal-popover-link { border-top-color: #2c2c28; }
+[data-theme="dark"] #save-indicator { background: #16281e !important; color: #6fc79a !important; }
+/* ☰ и ✕ должны быть незаметными, но всё-таки видимыми */
+[data-theme="dark"] .t-remove, [data-theme="dark"] .r-del, [data-theme="dark"] .z-btn,
+[data-theme="dark"] .drag-handle, [data-theme="dark"] .ib-caret, [data-theme="dark"] .zone-caret { color: #7d7a72; }
 </style>
 </head>
 <body>
@@ -1004,6 +1145,17 @@ function calDeleteNote(){ezTomb('cal:'+calSelectedDate);delete S.calendar[calSel
    До этого сферы («ДДТ», «Гимназия», …) и расписание занятий были вшиты в код:
    сменилась работа — владелец ждал программиста. Теперь это данные внутри
    ежедневника, они правятся здесь, уезжают в облако и переживают обновление. */
+function themeNow(){var t='auto';try{t=localStorage.getItem('ez-theme')||'auto'}catch(e){}return t}
+function applyTheme(){
+  var t=themeNow();
+  var dark=(t==='dark')||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  var m=document.getElementById('theme-color-meta');
+  if(m)m.setAttribute('content',dark?'#131312':'#f0eeea');
+}
+function setTheme(t){try{localStorage.setItem('ez-theme',t)}catch(e){}applyTheme();renderSettings()}
+if(window.matchMedia)try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){if(themeNow()==='auto')applyTheme()})}catch(e){}
+
 function toggleMenu(){var m=document.getElementById('menu-sheet');m.classList.toggle('open')}
 function closeMenu(){document.getElementById('menu-sheet').classList.remove('open')}
 
@@ -1074,7 +1226,15 @@ function schSetTag(kind){
 function schSetTagText(v){var tags=SCH().tags||(SCH().tags={});if(!tags[_setDay])return;tags[_setDay].t=v;schTouch()}
 
 function renderSettings(){
-  var h='<div class="set-block"><div class="set-head">Сферы</div>'
+  var th=themeNow();
+  var h='<div class="set-block"><div class="set-head">Вид</div>'
+    +'<div class="set-note">Хранится на этом устройстве: на телефоне и на компьютере может быть по-разному.</div>'
+    +'<div class="set-row">'
+    +'<button class="set-chip'+(th==='auto'?' on':'')+'" onclick="setTheme(\'auto\')">Как на телефоне</button>'
+    +'<button class="set-chip'+(th==='light'?' on':'')+'" onclick="setTheme(\'light\')">Светлая</button>'
+    +'<button class="set-chip'+(th==='dark'?' on':'')+'" onclick="setTheme(\'dark\')">Тёмная</button>'
+    +'</div></div>';
+  h+='<div class="set-block"><div class="set-head">Сферы</div>'
     +'<div class="set-note">Так называются столбцы на «Сегодня». Порядок меняется перетаскиванием там же, за ☰.</div>';
   ZD().forEach(function(z){
     var cnt=((S.zones[z.id]&&S.zones[z.id].tasks)||[]).filter(function(t){return!t.done}).length;
