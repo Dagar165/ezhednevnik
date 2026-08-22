@@ -511,6 +511,35 @@ body { padding-bottom: 90px; }
 /* ☰ и ✕ должны быть незаметными, но всё-таки видимыми */
 [data-theme="dark"] .t-remove, [data-theme="dark"] .r-del, [data-theme="dark"] .z-btn,
 [data-theme="dark"] .drag-handle, [data-theme="dark"] .ib-caret, [data-theme="dark"] .zone-caret { color: #7d7a72; }
+/* ===== ДЕНЬ РЕШАЕТ, ГДЕ ЗАДАЧУ ВИДНО (24.08.2026) ======================== */
+.today-task { display: block; padding: 0; border-bottom: 0.5px solid #f5f2ee; }
+.today-task:last-child { border-bottom: none; }
+.today-task .zt-line { min-height: 52px; }
+.today-task-text { flex: 1; cursor: pointer; padding: 6px 0; }
+
+/* свёрнутая строка «разложено по дням» во «Входящих» */
+.planned-fold { display: flex; align-items: center; gap: 10px; min-height: 50px; margin-top: 14px; padding: 0 14px;
+                background: #fff; border: 0.5px solid #e8e6e2; border-radius: 12px; font-size: 14px; cursor: pointer; }
+.planned-fold span { margin-left: auto; font-size: 13px; color: #999; }
+
+/* дела в открытом дне календаря */
+#cal-day-tasks { margin: 6px 0 12px; }
+.cal-task { display: flex; align-items: center; gap: 10px; min-height: 46px; border-bottom: 0.5px solid #f5f4f0; }
+.cal-task:last-of-type { border-bottom: none; }
+.cal-task-text { flex: 1; font-size: 15px; }
+.cal-task-text.done { color: #bbb; text-decoration: line-through; }
+.cal-note-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; margin: 10px 0 6px; }
+.cal-day-cnt { display: inline-block; min-width: 17px; height: 17px; line-height: 17px; margin-left: 4px; padding: 0 4px;
+               border-radius: 9px; background: #1a1a18; color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+.cal-day.has-tasks { border-color: #c9c6c0; }
+
+[data-theme="dark"] .planned-fold { background: #1e1e1c; border-color: #34342f; }
+[data-theme="dark"] .planned-fold span, [data-theme="dark"] .cal-note-label { color: #97948c; }
+[data-theme="dark"] .cal-task { border-bottom-color: #2a2a26; }
+[data-theme="dark"] .cal-task-text.done { color: #6b6862; }
+[data-theme="dark"] .cal-day-cnt { background: #ecebe6; color: #131312; }
+[data-theme="dark"] .cal-day.has-tasks { border-color: #45443e; }
+[data-theme="dark"] .today-task { border-bottom-color: #2a2a26; }
 </style>
 </head>
 <body>
@@ -524,12 +553,12 @@ body { padding-bottom: 90px; }
 <div class="tabs-bar"><button class="tab-btn active" onclick="switchTab('today-tab')">Сегодня</button><button class="tab-btn" onclick="switchTab('week-tab')">Неделя</button><button class="tab-btn" onclick="switchTab('inbox-tab')" id="inbox-tab-btn">Входящие</button><button class="tab-btn" onclick="switchTab('plan-tab')">📋 Планирование</button></div>
 <div class="tab-content active" id="today-tab"><div id="review-banner" class="review-banner">📋 Воскресенье — обнови зоны и спланируй неделю.</div><div class="main-task-section" id="main-task-section"></div><div class="top-row"><div class="top-card today-card"><div class="top-card-header"><span class="top-card-title">Задачи на сегодня</span><span class="today-count" id="today-count"></span></div><div class="top-card-body" id="today-tasks"></div></div><div class="top-card remind-card"><div class="top-card-header"><span class="top-card-title">Ежедневные</span></div><div class="top-card-body" id="remind-tasks"></div><div class="add-remind-row"><input class="add-input" id="inp-remind" placeholder="напоминание..." onkeydown="if(event.key==='Enter')addReminder()"><button class="add-btn" onclick="addReminder()">+</button></div></div></div><div class="zones-grid" id="zones-grid"></div><div class="hint">Нажми на сферу — раскроется. Нажми на задачу — появятся кнопки.</div></div>
 <div class="tab-content" id="week-tab"><div id="week-container"></div></div>
-<div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Запиши всё что прилетело. Потом раскинь по дням — задача появится в неделе и останется здесь с меткой 📅. ✕ в неделе = снять с дня (не удалит). ✕ в инбоксе = удалить совсем.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn mic-btn" id="mic-btn" onclick="micToggle()" title="Записать голосом">🎤</button><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
+<div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Наговори 🎤 или запиши, что прилетело. Назовёшь день вслух («сегодня», «в среду», «15-го») — дело само встанет на этот день и появится в «Сегодня», в «Неделе» и в календаре. Без дня оно ждёт здесь: нажми на строку и выбери день.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn mic-btn" id="mic-btn" onclick="micToggle()" title="Записать голосом">🎤</button><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
 <div class="tab-content" id="plan-tab"><div class="plan-header"><div class="plan-title">Утреннее планирование</div><div class="plan-subtitle">Понедельник — штаб. 20 минут, чтобы разложить неделю.</div></div><div class="plan-step"><div class="plan-step-title">1. Разбери входящие</div><div class="plan-step-desc">Каждую задачу — либо раскидай по дням, либо удали. Цель: входящие = 0.</div><button class="plan-step-btn" onclick="switchTab('inbox-tab')">Входящие →</button></div><div class="plan-step"><div class="plan-step-title">2. Обнови зоны</div><div class="plan-step-desc">Пройдись по зонам. Добавь новое, удали неактуальное.</div><button class="plan-step-btn" onclick="switchTab('today-tab')">Сегодня →</button></div><div class="plan-step"><div class="plan-step-title">3. Раскидай по неделе</div><div class="plan-step-desc">Смотри свободные окна (зелёные). Не больше 2-3 задач на тяжёлые дни.</div><button class="plan-step-btn" onclick="switchTab('week-tab')">Неделя →</button></div><div class="plan-step"><div class="plan-step-title">4. Главная задача дня</div><div class="plan-step-desc">Выбери ОДНУ задачу на сегодня — самую важную. Она будет вверху «Сегодня».</div></div><div class="plan-reminder"><p><strong>Вт</strong> и <strong>Сб</strong> — тяжёлые. Не грузи сверх расписания.</p><p><strong>Пн</strong> и <strong>Пт</strong> — дни для проектов (школа, Келек, волонтёры).</p><p><strong>Чт утро</strong> — 3-4 часа глубокой работы до гимназии.</p><p><strong>Вс</strong> — не трогай. День с женой.</p></div></div>
 <button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
 <div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
-<div class="modal-overlay cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()"><div class="cal-modal"><div class="cal-modal-head"><span class="cal-modal-title">Календарь</span><button class="cal-close" onclick="closeCalendar()">✕</button></div><div class="cal-scroll"><div class="cal-nav"><button class="cal-nav-btn" onclick="calPrev()">‹</button><span class="cal-month-label" id="cal-month-label"></span><button class="cal-nav-btn" onclick="calNext()">›</button></div><div class="cal-grid" id="cal-grid"></div><div class="cal-editor" id="cal-editor" style="display:none"><div class="cal-editor-title" id="cal-editor-title"></div><textarea id="cal-textarea" placeholder="Заметка..."></textarea><div class="cal-editor-btns"><button class="cal-del-btn" id="cal-del-btn" onclick="calDeleteNote()" style="display:none">Удалить</button><button class="cal-save-btn" onclick="calSaveNote()">Сохранить</button></div></div></div></div></div>
+<div class="modal-overlay cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()"><div class="cal-modal"><div class="cal-modal-head"><span class="cal-modal-title">Календарь</span><button class="cal-close" onclick="closeCalendar()">✕</button></div><div class="cal-scroll"><div class="cal-nav"><button class="cal-nav-btn" onclick="calPrev()">‹</button><span class="cal-month-label" id="cal-month-label"></span><button class="cal-nav-btn" onclick="calNext()">›</button></div><div class="cal-grid" id="cal-grid"></div><div class="cal-editor" id="cal-editor" style="display:none"><div class="cal-editor-title" id="cal-editor-title"></div><div id="cal-day-tasks"></div><div class="cal-note-label">Заметка на день</div><textarea id="cal-textarea" placeholder="Например: концерт в 19:00, взять билеты"></textarea><div class="cal-editor-btns"><button class="cal-del-btn" id="cal-del-btn" onclick="calDeleteNote()" style="display:none">Удалить</button><button class="cal-save-btn" onclick="calSaveNote()">Сохранить</button></div></div></div></div></div>
 <div class="modal-overlay backup-overlay" id="sync-overlay" onclick="if(event.target===this)closeSync()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">☁ Синхронизация</span><button class="backup-close" onclick="closeSync()">✕</button></div><div class="backup-body">
 <div id="sync-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:6px"></div>
 <div id="sync-detail" style="font-size:12px;padding:0 2px 8px;color:#6b6a66"></div>
@@ -871,11 +900,107 @@ function planDates(n){var r=[],d=new Date();for(var i=0;i<(n||14);i++){var x=new
 function planLabel(d){var t=todayStr(),k=dateKey(d);if(k===t)return 'Сегодня';var tm=new Date();tm.setDate(tm.getDate()+1);if(k===dateKey(tm))return 'Завтра';return DAY_SHORT[d.getDay()]+' '+d.getDate()+' '+MONTHS_RU2[d.getMonth()].slice(0,3)}
 /* --- конец блока раскладки ---------------------------------------------- */
 
+/* --- ДЕНЬ РЕШАЕТ, ГДЕ ЗАДАЧУ ВИДНО ---------------------------------------
+   Было так: наговорил «нужно сегодня» — расшифровка честно ставила дату, но
+   задача оставалась лежать во «Входящих», в разделе «Запланировано». В
+   карточке «Задачи на сегодня» её не было, в календаре тоже. То есть человек
+   сказал вслух «сегодня», а увидеть это мог только в третьей вкладке.
+
+   Теперь правило одно: **задачу никуда не перекладываем, её показывают по
+   дате**. Одна и та же запись видна везде, где этот день:
+     - день = сегодня  -> карточка «Задачи на сегодня»;
+     - любой день      -> вкладка «Неделя» и клетка в «Календаре»;
+     - дня нет         -> «Входящие», то есть «ещё не разобрано».
+   Отсюда же ответ на «что за Запланировано»: разложенное по дням больше не
+   мозолит глаза во «Входящих», оно свёрнуто в одну строку.
+
+   Дела дня приходят из трёх мест, и это нормально: S.today (перенесённое из
+   сфер), S.weekTasks[день] (запланированное руками) и S.inbox с этим днём
+   (наговорённое). Собираем их в один список — данные при этом не двигаются,
+   поэтому и потерять нечего.                                               */
+function dayEntries(dk){
+  var out=[];
+  if(dk===todayStr())S.today.forEach(function(t){out.push({src:'today',item:t,dk:dk})});
+  (S.weekTasks[dk]||[]).forEach(function(t){out.push({src:'week',item:t,dk:dk})});
+  S.inbox.forEach(function(x){if(x.plannedDate===dk)out.push({src:'inbox',item:x,dk:dk})});
+  return out;
+}
+function dayOpenCount(dk){return dayEntries(dk).filter(function(e){return!e.item.done}).length}
+function entryZoneName(e){
+  if(e.src==='today')return e.item.zone||'';
+  var z=zoneById(e.item.zone);return z?z.name:'';
+}
+function dayWord(dk){
+  if(!dk)return '';
+  var t=todayStr();if(dk===t)return 'Сегодня';
+  var tm=new Date();tm.setDate(tm.getDate()+1);if(dk===dateKey(tm))return 'Завтра';
+  var d=new Date(dk+'T12:00:00');
+  return DAY_SHORT[d.getDay()]+' '+d.getDate()+' '+MONTHS_RU2[d.getMonth()].slice(0,3);
+}
+/* Галочка и «убрать» бьют по той записи, откуда строка пришла. */
+function dayToggle(src,id,dk){
+  if(src==='today')toggleToday(id);
+  else if(src==='week')toggleWeekTask(dk,id);
+  else toggleInboxDone(id);
+  rerenderActive();
+}
+function dayMove(src,id,dk,to){
+  if(!to)return;
+  if(src==='inbox'){moveInboxToDay(id,to);rerenderActive();return}
+  if(src==='week'){
+    var arr=S.weekTasks[dk]||[],got=null;
+    arr.forEach(function(t){if(t.id===id)got=t});
+    if(!got)return;
+    S.weekTasks[dk]=arr.filter(function(t){return t.id!==id});
+    if(!S.weekTasks[to])S.weekTasks[to]=[];
+    ezTouch(got);S.weekTasks[to].push(got);
+    save();rerenderActive();toast('→ '+dayWord(to));return;
+  }
+  // «Сегодня» из сферы: превращаем в задачу того дня, чтобы не плодить сущности
+  var t2=null;S.today.forEach(function(t){if(t.id===id)t2=t});
+  if(!t2)return;
+  if(!S.weekTasks[to])S.weekTasks[to]=[];
+  S.weekTasks[to].push({id:uid(),_u:Date.now(),text:t2.text,zone:t2.zoneId||null,done:!!t2.done});
+  ezTomb(id);S.today=S.today.filter(function(t){return t.id!==id});
+  save();rerenderActive();toast('→ '+dayWord(to));
+}
+function dayRemove(src,id,dk){
+  if(src==='today')removeToday(id);
+  else if(src==='week')deleteWeekTask(dk,id);
+  else unplanInbox(id);                 // из наговорённого — обратно во «Входящие»
+  rerenderActive();
+}
+/* Одна строка дела дня. Такая же, как в сферах: нажал на текст — снизу
+   раскрылись крупные кнопки. */
+function dayRowHtml(e){
+  var it=e.item,open=(_openRow===it.id),zn=entryZoneName(e);
+  var h='<div class="today-task'+(open?' row-open':'')+'" data-id="'+it.id+'">'
+    +'<div class="zt-line">'
+    +'<div class="check-box'+(it.done?' done':'')+'" onclick="dayToggle(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')"></div>'
+    +'<div class="today-task-text'+(it.done?' done':'')+'" onclick="toggleRow(\''+it.id+'\')">'+esc(it.text)+'</div>'
+    +(zn?'<span class="zone-badge">'+esc(zn)+'</span>':'')
+    +'</div>';
+  if(open){
+    var opts='<option value="" disabled selected>Перенести на день…</option>';
+    planDates(14).forEach(function(d){var k=dateKey(d);if(k!==e.dk)opts+='<option value="'+k+'">'+planLabel(d)+'</option>'});
+    h+='<div class="row-actions">'
+      +'<select class="row-act select" onchange="dayMove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\',this.value)">'+opts+'</select>'
+      +'<button class="row-act" onclick="dayRemove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')">'
+      +(e.src==='inbox'?'↺ Вернуть во входящие':'✕ Убрать с дня')+'</button>';
+    if(e.src==='inbox')h+='<button class="row-act danger" onclick="deleteInbox(\''+it.id+'\')">✕ Удалить совсем</button>';
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+/* --- конец блока «день решает» ------------------------------------------ */
+
 // RENDER
 function render(){document.getElementById('date-label').textContent=todayLabel();if(new Date().getDay()===0)document.getElementById('review-banner').style.display='block';renderMainTask();
-var h1='',ac=S.today.filter(function(t){return!t.done}).length;document.getElementById('today-count').textContent=ac?ac+' задач':'';
-if(!S.today.length)h1='<div class="top-empty">Перенеси задачи из зон →</div>';
-else S.today.forEach(function(t){h1+='<div class="today-task" data-id="'+t.id+'"><span class="drag-handle">☰</span><div class="check-box'+(t.done?' done':'')+'" onclick="toggleToday(\''+t.id+'\')"></div><div class="today-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</div><span class="zone-badge">'+esc(t.zone)+'</span><button class="t-remove" onclick="removeToday(\''+t.id+'\')">✕</button></div>'});
+var ds0=todayStr(),ent=dayEntries(ds0),h1='';
+var ac=ent.filter(function(e){return!e.item.done}).length;
+document.getElementById('today-count').textContent=ac?ac+' задач':'';
+if(!ent.length)h1='<div class="top-empty">Пусто. Наговори во «Входящих» или возьми из сферы ниже.</div>';
+else ent.forEach(function(e){h1+=dayRowHtml(e)});
 document.getElementById('today-tasks').innerHTML=h1;
 var h2='';S.reminders.forEach(function(r){h2+='<div class="reminder-item"><div class="r-check'+(r.done?' done':'')+'" onclick="toggleReminder(\''+r.id+'\')"></div><div class="reminder-text'+(r.done?' done':'')+'">'+esc(r.text)+'</div><button class="r-del" onclick="deleteReminder(\''+r.id+'\')">✕</button></div>'});
 document.getElementById('remind-tasks').innerHTML=h2||'<div class="top-empty">Нет</div>';
@@ -995,23 +1120,41 @@ function renderInbox(){
     }
     return '<div class="inbox-item'+vCls+(isPlanned?' planned':'')+(open?' row-open':'')+'">'+line+acts+'</div>';
   }
+  /* Раньше здесь двумя равными списками лежали «не распределено» и
+     «запланировано», и второй никуда не девался — входящие никогда не были
+     нулём, а зачем он нужен, было непонятно. Теперь разложенное по дням
+     свёрнуто в одну строку: его место — в «Сегодня», «Неделе» и календаре. */
   var h='';
   if(!all.length){h='<div class="inbox-empty">Пусто. Так держать.</div>';}
-  else if(!unplanned.length&&planned.length){
-    h+='<div class="inbox-empty" style="color:#1D7A44">✓ Всё раскинуто по дням. Запланированные ниже — с меткой 📅.</div>';
-    h+='<div class="inbox-subhead">Запланировано · '+planned.length+'</div>';
-    planned.sort(function(a,b){return a.plannedDate.localeCompare(b.plannedDate)}).forEach(function(x){h+=renderItem(x,true)});
-  }
   else{
-    if(unplanned.length){h+='<div class="inbox-subhead">Не распределено · '+unplanned.length+'</div>';unplanned.forEach(function(x){h+=renderItem(x,false)});}
-    if(planned.length){h+='<div class="inbox-subhead">Запланировано · '+planned.length+'</div>';planned.sort(function(a,b){return a.plannedDate.localeCompare(b.plannedDate)}).forEach(function(x){h+=renderItem(x,true)});}
+    if(unplanned.length){h+='<div class="inbox-subhead">Разобрать · '+unplanned.length+'</div>';unplanned.forEach(function(x){h+=renderItem(x,false)});}
+    else h+='<div class="inbox-empty" style="color:#1D7A44">✓ Всё разложено по дням. Что на сегодня — в «Сегодня», остальное — в «Неделе» и календаре.</div>';
+    if(planned.length){
+      h+='<div class="planned-fold" onclick="togglePlanned()">📅 Разложено по дням · '+planned.length
+        +'<span>'+(_showPlanned?'скрыть':'показать')+'</span></div>';
+      if(_showPlanned){
+        var byDay={},days=[];
+        planned.sort(function(a,b){return a.plannedDate.localeCompare(b.plannedDate)}).forEach(function(x){
+          if(!byDay[x.plannedDate]){byDay[x.plannedDate]=[];days.push(x.plannedDate)}
+          byDay[x.plannedDate].push(x);
+        });
+        days.forEach(function(dk){
+          h+='<div class="inbox-subhead">'+dayWord(dk)+'</div>';
+          byDay[dk].forEach(function(x){h+=renderItem(x,true)});
+        });
+      }
+    }
   }
   document.getElementById('inbox-list').innerHTML=h;
 }
-function renderInboxBadge(){var unplan=S.inbox.filter(function(x){return!x.done&&!x.plannedDate}).length;var plan=S.inbox.filter(function(x){return!x.done&&x.plannedDate}).length;var txt='Входящие';var badge='';if(unplan&&plan)badge='<span class="tab-badge">'+unplan+'+'+plan+'</span>';else if(unplan)badge='<span class="tab-badge">'+unplan+'</span>';else if(plan)badge='<span class="tab-badge" style="background:#3a5c8a">'+plan+'</span>';document.getElementById('inbox-tab-btn').innerHTML=txt+badge}
+/* Значок на вкладке считает только неразобранное: разложенное по дням уже
+   стоит в своём дне и требовать внимания не должно. */
+function renderInboxBadge(){var unplan=S.inbox.filter(function(x){return!x.done&&!x.plannedDate}).length;document.getElementById('inbox-tab-btn').innerHTML='Входящие'+(unplan?'<span class="tab-badge">'+unplan+'</span>':'')}
+var _showPlanned=false;
+function togglePlanned(){_showPlanned=!_showPlanned;renderInbox()}
 function addInbox(){var i=document.getElementById('inbox-input'),z=document.getElementById('inbox-zone-select'),t=i.value.trim();if(!t)return;S.inbox.push({id:uid(),_u:Date.now(),text:t,zone:z.value||null,created:todayStr(),createdAt:Date.now(),done:false,plannedDate:null});i.value='';z.value='';save();renderInbox();renderInboxBadge();toast('Записано')}
 function deleteInbox(id){var item=null;S.inbox.forEach(function(x){if(x.id===id)item=x});if(!item)return;var txt=item.text.length>80?item.text.slice(0,80)+'…':item.text;if(!confirm('Удалить совсем?\n\n«'+txt+'»'))return;if(item.voice&&window.voiceForget)window.voiceForget(id);ezTomb(id);S.inbox=S.inbox.filter(function(x){return x.id!==id});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Удалено')}
-function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;ezTouch(item);save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();var d=new Date(dk+'T12:00:00');var lbl=DAY_SHORT[d.getDay()]+' '+d.getDate();toast(wasPlanned?'Перенесено на '+lbl:'→ '+lbl+' · в «Запланировано» ниже');setTimeout(function(){var el=document.querySelector('.inbox-item.planned');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'})},150)}
+function moveInboxToDay(iid,dk){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item||!dk)return;var wasPlanned=!!item.plannedDate;item.plannedDate=dk;ezTouch(item);save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('→ '+dayWord(dk)+(dk===todayStr()?' · смотри «Сегодня»':''))}
 function unplanInbox(iid){var item=null;S.inbox.forEach(function(x){if(x.id===iid)item=x});if(!item)return;item.plannedDate=null;ezTouch(item);save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek();toast('Снято с дня')}
 function toggleInboxDone(iid){S.inbox.forEach(function(x){if(x.id===iid){x.done=!x.done;ezTouch(x);if(x.done&&x.voice&&window.voiceForget)window.voiceForget(iid)}});save();renderInbox();renderInboxBadge();if(document.getElementById('week-tab').classList.contains('active'))renderWeek()}
 
@@ -1026,7 +1169,25 @@ function cancelTask(zi,ti){var zn=null,tk=null;ZD().forEach(function(z){if(z.id=
 function deleteZoneTask(zi,ti){var tk=null;S.zones[zi].tasks.forEach(function(t){if(t.id===ti)tk=t});if(!tk||!confirm('Удалить «'+tk.text+'»?'))return;ezTomb(ti);S.today.forEach(function(t){if(t.sourceId===ti)ezTomb(t.id)});S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==ti});S.today=S.today.filter(function(t){return t.sourceId!==ti});save();render()}
 
 // NEW DAY
-function newDay(){if(!confirm('Новый день?\nВыполненные → архив, ежедневные → сброс.'))return;var l=todayLabel(),ds=todayStr(),c=0;S.today.filter(function(t){return t.done}).forEach(function(t){ezTomb(t.id);if(t.sourceId)ezTomb(t.sourceId);S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:t.zone||'',zoneId:t.zoneId,sourceId:t.sourceId,status:'done',archivedAt:l,archivedDate:ds});if(t.zoneId&&t.sourceId&&S.zones[t.zoneId])S.zones[t.zoneId].tasks=S.zones[t.zoneId].tasks.filter(function(z){return z.id!==t.sourceId});c++});S.today=S.today.filter(function(t){return!t.done});ZD().forEach(function(z){if(!S.zones[z.id])return;var k=[];S.zones[z.id].tasks.forEach(function(t){if(t.done){ezTomb(t.id);S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:z.name,zoneId:z.id,sourceId:t.id,status:'done',archivedAt:l,archivedDate:ds});c++}else k.push(t)});S.zones[z.id].tasks=k});S.reminders.forEach(function(r){r.done=false});S.date=ds;save();render();toast(c+' → архив')}
+function newDay(){if(!confirm('Новый день?\nВыполненные → архив, ежедневные → сброс.'))return;var l=todayLabel(),ds=todayStr(),c=0;S.today.filter(function(t){return t.done}).forEach(function(t){ezTomb(t.id);if(t.sourceId)ezTomb(t.sourceId);S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:t.zone||'',zoneId:t.zoneId,sourceId:t.sourceId,status:'done',archivedAt:l,archivedDate:ds});if(t.zoneId&&t.sourceId&&S.zones[t.zoneId])S.zones[t.zoneId].tasks=S.zones[t.zoneId].tasks.filter(function(z){return z.id!==t.sourceId});c++});S.today=S.today.filter(function(t){return!t.done});ZD().forEach(function(z){if(!S.zones[z.id])return;var k=[];S.zones[z.id].tasks.forEach(function(t){if(t.done){ezTomb(t.id);S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:z.name,zoneId:z.id,sourceId:t.id,status:'done',archivedAt:l,archivedDate:ds});c++}else k.push(t)});S.zones[z.id].tasks=k});/* Раньше «Новый день» разбирал только «Сегодня» и сферы. Наговорённое и
+   запланированное на день оставалось отмеченным навсегда: выполненные висели
+   в памяти, а на экране показывались зачёркнутыми. Теперь в архив уезжает всё
+   сделанное — из входящих и из дней по сегодняшний включительно. */
+S.inbox.filter(function(x){return x.done}).forEach(function(x){
+  S.archive.unshift({id:uid(),_u:Date.now(),text:x.text,zone:(zoneById(x.zone)||{}).name||'',zoneId:x.zone||null,status:'done',archivedAt:l,archivedDate:ds});
+  ezTomb(x.id);c++;
+});
+S.inbox=S.inbox.filter(function(x){return!x.done});
+Object.keys(S.weekTasks).forEach(function(dk){
+  if(dk>ds)return;                                  // будущие дни не трогаем
+  var keep=[];
+  (S.weekTasks[dk]||[]).forEach(function(t){
+    if(t.done){S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:(zoneById(t.zone)||{}).name||'',zoneId:t.zone||null,status:'done',archivedAt:l,archivedDate:ds});ezTomb(t.id);c++}
+    else keep.push(t);
+  });
+  if(keep.length)S.weekTasks[dk]=keep;else delete S.weekTasks[dk];
+});
+S.reminders.forEach(function(r){r.done=false});S.date=ds;save();render();toast(c+' → архив')}
 
 // REMINDERS
 function toggleReminder(id){S.reminders.forEach(function(r){if(r.id===id){r.done=!r.done;ezTouch(r)}});save();render()}
@@ -1128,7 +1289,25 @@ function loadEmbeddedBackup(){
 
 // CALENDAR
 var calYear,calMonth,calSelectedDate;
-function renderCalNotifs(){var ds=todayStr(),tom=new Date();tom.setDate(tom.getDate()+1);var ts=dateKey(tom);var tn=S.calendar[ds],tmn=S.calendar[ts];var tp=document.getElementById('cal-today-pill'),tmp=document.getElementById('cal-tomorrow-pill');if(tn){tp.classList.add('show');document.getElementById('pop-today-text').textContent=tn}else tp.classList.remove('show');if(tmn){tmp.classList.add('show');document.getElementById('pop-tomorrow-text').textContent=tmn}else tmp.classList.remove('show')}
+/* Колокольчики в шапке. Раньше они загорались только от заметки в календаре,
+   а дела на день (в том числе наговорённые) в них не попадали — секретарь
+   молчал ровно про то, ради чего его заводили. Теперь показывают и заметку,
+   и что на этот день назначено. */
+function calDigest(dk){
+  var out=[],note=S.calendar[dk];
+  if(note)out.push(note);
+  dayEntries(dk).filter(function(e){return!e.item.done}).forEach(function(e){out.push('• '+e.item.text)});
+  return out.join(String.fromCharCode(10));
+}
+function renderCalNotifs(){
+  var ds=todayStr(),tom=new Date();tom.setDate(tom.getDate()+1);var ts=dateKey(tom);
+  [['cal-today-pill','pop-today-text',ds],['cal-tomorrow-pill','pop-tomorrow-text',ts]].forEach(function(x){
+    var pill=document.getElementById(x[0]);if(!pill)return;
+    var txt=calDigest(x[2]);
+    if(txt){pill.classList.add('show');document.getElementById(x[1]).textContent=txt}
+    else pill.classList.remove('show');
+  });
+}
 function closePopovers(){document.getElementById('pop-today').classList.remove('open');document.getElementById('pop-tomorrow').classList.remove('open')}
 function toggleCalPopover(w){var p=w==='today'?'pop-today':'pop-tomorrow',o=w==='today'?'pop-tomorrow':'pop-today';document.getElementById(o).classList.remove('open');document.getElementById(p).classList.toggle('open')}
 document.addEventListener('click',function(e){if(!e.target.closest('.cal-notif-pill'))closePopovers()});
@@ -1136,8 +1315,42 @@ function openCalendar(){var d=new Date();calYear=d.getFullYear();calMonth=d.getM
 function closeCalendar(){document.getElementById('cal-overlay').classList.remove('open')}
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}calSelectedDate=null;renderCal()}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}calSelectedDate=null;renderCal()}
-function renderCal(){document.getElementById('cal-month-label').textContent=MONTHS_RU[calMonth]+' '+calYear;var f=new Date(calYear,calMonth,1),sd=(f.getDay()+6)%7,dm=new Date(calYear,calMonth+1,0).getDate(),ds=todayStr();var h='';['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d){h+='<div class="cal-dow">'+d+'</div>'});for(var i=0;i<sd;i++)h+='<div class="cal-day empty"></div>';for(var d=1;d<=dm;d++){var dk=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),it=dk===ds,n=S.calendar[dk]||'';h+='<div class="cal-day'+(it?' today':'')+(n?' has-note':'')+'" onclick="calSelectDay(\''+dk+'\','+d+')"><div class="cal-day-num">'+d+'</div>'+(n?'<div class="cal-day-note">'+esc(n)+'</div>':'')+'</div>'}document.getElementById('cal-grid').innerHTML=h;document.getElementById('cal-editor').style.display=calSelectedDate?'block':'none'}
-function calSelectDay(dk,d){calSelectedDate=dk;document.getElementById('cal-editor').style.display='block';document.getElementById('cal-editor-title').textContent=d+' '+MONTHS_RU2[calMonth]+' '+calYear;document.getElementById('cal-textarea').value=S.calendar[dk]||'';document.getElementById('cal-del-btn').style.display=S.calendar[dk]?'inline-block':'none'}
+function renderCal(){document.getElementById('cal-month-label').textContent=MONTHS_RU[calMonth]+' '+calYear;var f=new Date(calYear,calMonth,1),sd=(f.getDay()+6)%7,dm=new Date(calYear,calMonth+1,0).getDate(),ds=todayStr();var h='';['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d){h+='<div class="cal-dow">'+d+'</div>'});for(var i=0;i<sd;i++)h+='<div class="cal-day empty"></div>';for(var d=1;d<=dm;d++){var dk=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),it=dk===ds,n=S.calendar[dk]||'';var cnt=dayOpenCount(dk);
+h+='<div class="cal-day'+(it?' today':'')+(n?' has-note':'')+(cnt?' has-tasks':'')+'" onclick="calSelectDay(\''+dk+'\')"><div class="cal-day-num">'+d+(cnt?'<span class="cal-day-cnt">'+cnt+'</span>':'')+'</div>'+(n?'<div class="cal-day-note">'+esc(n)+'</div>':'')+'</div>'}document.getElementById('cal-grid').innerHTML=h;document.getElementById('cal-editor').style.display=calSelectedDate?'block':'none'}
+/* Клетка календаря открывает день целиком: сначала дела на него (в том числе
+   наговорённые — «15-го концерт» теперь видно именно здесь), потом свободная
+   заметка. Раньше в календаре жила только заметка, и задача с датой в него не
+   попадала вообще. */
+function calSelectDay(dk){
+  calSelectedDate=dk;
+  var parts=dk.split('-'),dnum=parseInt(parts[2],10),mon=parseInt(parts[1],10)-1;
+  document.getElementById('cal-editor').style.display='block';
+  document.getElementById('cal-editor-title').textContent=dnum+' '+MONTHS_RU2[mon]+' '+parts[0]+' · '+DAY_FULL[new Date(dk+'T12:00:00').getDay()];
+  document.getElementById('cal-textarea').value=S.calendar[dk]||'';
+  document.getElementById('cal-del-btn').style.display=S.calendar[dk]?'inline-block':'none';
+  renderCalDay();
+}
+function renderCalDay(){
+  var box=document.getElementById('cal-day-tasks');if(!box)return;
+  var dk=calSelectedDate,ent=dayEntries(dk),h='';
+  if(!ent.length)h+='<div class="set-empty">Дел на этот день нет</div>';
+  ent.forEach(function(e){
+    h+='<div class="cal-task"><div class="small-check'+(e.item.done?' done':'')+'" onclick="calToggle(\''+e.src+'\',\''+e.item.id+'\')"></div>'
+      +'<span class="cal-task-text'+(e.item.done?' done':'')+'">'+esc(e.item.text)+'</span>'
+      +(entryZoneName(e)?'<span class="week-task-zone">'+esc(entryZoneName(e))+'</span>':'')
+      +'<button class="z-btn del-t" title="Убрать с этого дня" onclick="calUnplan(\''+e.src+'\',\''+e.item.id+'\')">✕</button></div>';
+  });
+  h+='<div class="set-row" style="margin-top:8px"><input class="add-input" id="cal-task-input" placeholder="+ дело на этот день" onkeydown="if(event.key===\'Enter\')calAddTask()"><button class="add-btn" onclick="calAddTask()">+</button></div>';
+  box.innerHTML=h;
+}
+function calToggle(src,id){dayToggle(src,id,calSelectedDate);renderCalDay();renderCal()}
+function calUnplan(src,id){dayRemove(src,id,calSelectedDate);renderCalDay();renderCal()}
+function calAddTask(){
+  var i=document.getElementById('cal-task-input'),t=(i.value||'').trim();if(!t)return;
+  if(!S.weekTasks[calSelectedDate])S.weekTasks[calSelectedDate]=[];
+  S.weekTasks[calSelectedDate].push({id:uid(),_u:Date.now(),text:t,zone:null,done:false});
+  i.value='';save();renderCalDay();renderCal();rerenderActive();toast('→ '+dayWord(calSelectedDate));
+}
 function calSaveNote(){var t=document.getElementById('cal-textarea').value.trim();if(t)S.calendar[calSelectedDate]=t;else{ezTomb('cal:'+calSelectedDate);delete S.calendar[calSelectedDate]}save();renderCal();renderCalNotifs();toast('Сохранено')}
 function calDeleteNote(){ezTomb('cal:'+calSelectedDate);delete S.calendar[calSelectedDate];save();renderCal();renderCalNotifs();toast('Удалено')}
 
@@ -1293,7 +1506,10 @@ function renderSettings(){
 
 // SORTABLE
 var _sortables=[];
-function initSortables(){_sortables.forEach(function(s){try{s.destroy()}catch(e){}});_sortables=[];if(typeof Sortable==='undefined')return;var te=document.getElementById('today-tasks');if(te&&S.today.length>0)_sortables.push(new Sortable(te,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.today.splice(e.oldIndex,1)[0];S.today.splice(e.newIndex,0,i);save()}}));var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(ze,{handle:'.zone-drag',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zoneOrder.splice(e.oldIndex,1)[0];S.zoneOrder.splice(e.newIndex,0,i);save()}}));(S.zoneOrder||[]).forEach(function(zi){var el=document.getElementById('zone-tasks-'+zi);if(!el||!S.zones[zi]||S.zones[zi].tasks.length<2)return;_sortables.push(new Sortable(el,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zones[zi].tasks.splice(e.oldIndex,1)[0];S.zones[zi].tasks.splice(e.newIndex,0,i);save()}}))})}
+function initSortables(){_sortables.forEach(function(s){try{s.destroy()}catch(e){}});_sortables=[];if(typeof Sortable==='undefined')return;/* Перетаскивание дел дня убрано намеренно: список теперь собран из трёх мест
+   (сферы, неделя, наговорённое), и порядок строк на экране больше не совпадает
+   с порядком записей в памяти — таскать было бы нечего и опасно. */
+var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(ze,{handle:'.zone-drag',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zoneOrder.splice(e.oldIndex,1)[0];S.zoneOrder.splice(e.newIndex,0,i);save()}}));(S.zoneOrder||[]).forEach(function(zi){var el=document.getElementById('zone-tasks-'+zi);if(!el||!S.zones[zi]||S.zones[zi].tasks.length<2)return;_sortables.push(new Sortable(el,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zones[zi].tasks.splice(e.oldIndex,1)[0];S.zones[zi].tasks.splice(e.newIndex,0,i);save()}}))})}
 
 load();render();cleanupArchive();
 
@@ -1838,7 +2054,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       redraw();
       var z = zoneName(res.zone);
       toast((res.understood ? '✔ ' : '❓ ') + (z || 'без сферы') +
-            (res.date ? ' · ' + res.date : '') + '  ' + secs + ' c');
+            (res.date ? ' · ' + dayWord(res.date) : '') + '  ' + secs + ' c');
       pump();
     }).catch(function(e){
       sending = false;
