@@ -540,10 +540,46 @@ body { padding-bottom: 90px; }
 [data-theme="dark"] .cal-day-cnt { background: #ecebe6; color: #131312; }
 [data-theme="dark"] .cal-day.has-tasks { border-color: #45443e; }
 [data-theme="dark"] .today-task { border-bottom-color: #2a2a26; }
+/* ===== ПРАВКИ ПО ЖИВОМУ ТЕЛЕФОНУ, ЗАХОД ВТОРОЙ (25.08.2026) ============== */
+
+/* 1. Экран больше не ездит вбок. Раньше два зажжённых колокольчика распирали
+      шапку, и телефон начинал прокручиваться вправо. */
+body { overflow-x: hidden; }
+.app-header { flex-wrap: wrap; gap: 8px; }
+.cal-notif-wrap { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin: 0 0 12px; position: relative; }
+.cal-notif-pill { min-height: 44px; font-size: 14px; padding: 8px 14px; flex: 1 1 auto; justify-content: center; }
+.cal-popover { width: min(280px, calc(100vw - 32px)); left: 0; right: auto; }
+.cal-notif-pill.tomorrow-pill .cal-popover { left: auto; right: 0; }
+.cal-popover-text { white-space: pre-line; }
+
+/* 1б. «Неделя» листается вперёд и назад. */
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.week-nav-label { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.week-now { min-height: 34px; padding: 0 12px; border: 0.5px solid #e0deda; border-radius: 8px; background: #faf9f7;
+            font-family: inherit; font-size: 13px; color: #666; cursor: pointer; }
+.cal-nav-btn { min-width: 44px; min-height: 44px; }
+[data-theme="dark"] .week-now { background: #262623; border-color: #34342f; color: #b6b2a9; }
+
+/* 2. Дело сферы, у которого есть день, помечено датой — чтобы было понятно,
+      почему оно же стоит в «Сегодня» или в календаре. */
+.day-chip { font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #eef4ff; color: #3a5c8a;
+            white-space: nowrap; flex-shrink: 0; }
+
+/* 3. Открытый день календаря в тёмной теме был светлой плашкой со светлым же
+      текстом — не читалось вообще ничего. */
+[data-theme="dark"] .cal-editor { background: #242421; }
+[data-theme="dark"] .cal-editor-title { color: #ecebe6; }
+[data-theme="dark"] .cal-editor textarea { background: #1e1e1c; border-color: #34342f; color: #ecebe6; }
+[data-theme="dark"] .cal-close, [data-theme="dark"] .arch-close, [data-theme="dark"] .backup-close
+{ background: #34342f; color: #ecebe6; }
+[data-theme="dark"] .cal-day:hover { background: #262623; }
+[data-theme="dark"] .day-chip { background: #1b2a3d; color: #9cc4f0; }
+[data-theme="dark"] .cal-dow { color: #97948c; }
 </style>
 </head>
 <body>
-<div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><div style="position:relative;display:flex;align-items:center;gap:6px;"><button class="hdr-btn" onclick="openCalendar()">📅</button><div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()">🔴 Сегодня<div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()">🔔 Завтра<div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div></div><button class="hdr-btn" id="sync-btn" onclick="openSync()">☁</button><button class="hdr-btn" onclick="toggleMenu()" title="Ещё">⋯</button></div></div>
+<div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><button class="hdr-btn" onclick="openCalendar()">📅</button><button class="hdr-btn" id="sync-btn" onclick="openSync()">☁</button><button class="hdr-btn" onclick="toggleMenu()" title="Ещё">⋯</button></div></div>
+<div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()">🔴 Сегодня<div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()">🔔 Завтра<div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div>
 <div class="menu-sheet" id="menu-sheet" onclick="if(event.target===this)closeMenu()"><div class="menu-card">
 <button class="menu-item" onclick="closeMenu();openArchive()">📦 Архив<span>выполненное и отменённое</span></button>
 <button class="menu-item" onclick="closeMenu();openBackup()">💾 Данные и копии<span>скачать бэкап, восстановить</span></button>
@@ -944,8 +980,20 @@ function dayToggle(src,id,dk){
   else toggleInboxDone(id);
   rerenderActive();
 }
-function dayMove(src,id,dk,to){
+function dayMove(src,id,dk,to,zi){
   if(!to)return;
+  if(src==='zone'){
+    // Дело сферы встаёт на день: сфера у него сохраняется, поэтому из карточки
+    // сферы оно никуда не пропадает — только получает дату.
+    var zt=null;((S.zones[zi]||{}).tasks||[]).forEach(function(t){if(t.id===id)zt=t});
+    if(!zt)return;
+    if(!S.weekTasks[to])S.weekTasks[to]=[];
+    S.weekTasks[to].push({id:uid(),_u:Date.now(),text:zt.text,zone:zi,done:!!zt.done});
+    ezTomb(id);S.zones[zi].tasks=S.zones[zi].tasks.filter(function(t){return t.id!==id});
+    S.today.filter(function(t){return t.sourceId===id}).forEach(function(t){ezTomb(t.id)});
+    S.today=S.today.filter(function(t){return t.sourceId!==id});
+    save();rerenderActive();toast('→ '+dayWord(to));return;
+  }
   if(src==='inbox'){moveInboxToDay(id,to);rerenderActive();return}
   if(src==='week'){
     var arr=S.weekTasks[dk]||[],got=null;
@@ -970,28 +1018,60 @@ function dayRemove(src,id,dk){
   else unplanInbox(id);                 // из наговорённого — обратно во «Входящие»
   rerenderActive();
 }
-/* Одна строка дела дня. Такая же, как в сферах: нажал на текст — снизу
-   раскрылись крупные кнопки. */
-function dayRowHtml(e){
-  var it=e.item,open=(_openRow===it.id),zn=entryZoneName(e);
+/* Дела сферы. Раньше карточка сферы показывала только свой список задач, и
+   наговорённое со сферой «Личное» в ней не появлялось: в «Задачах на сегодня»
+   стояла пометка «Личное», а в самой «Личное» — пусто. Теперь правило второе,
+   парное к первому: **сфера решает, в какой карточке дело, день решает, когда**.
+   Одна и та же запись видна и там, и там; данные при этом не копируются. */
+function zoneEntries(zi){
+  var own=[],dated=[],loose=[];
+  ((S.zones[zi]||{}).tasks||[]).forEach(function(t){own.push({src:'zone',item:t,zi:zi,dk:null})});
+  Object.keys(S.weekTasks||{}).forEach(function(dk){
+    (S.weekTasks[dk]||[]).forEach(function(t){if(t.zone===zi&&!t.done)dated.push({src:'week',item:t,zi:zi,dk:dk})});
+  });
+  S.inbox.forEach(function(x){
+    if(x.zone!==zi||x.done)return;
+    if(x.plannedDate)dated.push({src:'inbox',item:x,zi:zi,dk:x.plannedDate});
+    else loose.push({src:'inbox',item:x,zi:zi,dk:null});
+  });
+  dated.sort(function(a,b){return a.dk.localeCompare(b.dk)});
+  return own.concat(dated,loose);
+}
+
+/* Одна строка дела — и в дне, и в сфере. Нажал на текст — снизу раскрылись
+   крупные кнопки, свои для каждого случая. */
+function entryRowHtml(e,where){
+  var it=e.item,open=(_openRow===it.id);
+  var chip='';
+  if(where==='day'){var zn=entryZoneName(e);if(zn)chip='<span class="zone-badge">'+esc(zn)+'</span>'}
+  else if(e.dk)chip='<span class="day-chip">📅 '+dayWord(e.dk)+'</span>';
+  var onCheck=(e.src==='zone')?('toggleZone(\''+e.zi+'\',\''+it.id+'\')')
+                              :('dayToggle(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')');
   var h='<div class="today-task'+(open?' row-open':'')+'" data-id="'+it.id+'">'
     +'<div class="zt-line">'
-    +'<div class="check-box'+(it.done?' done':'')+'" onclick="dayToggle(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')"></div>'
+    +'<div class="check-box'+(it.done?' done':'')+'" onclick="'+onCheck+'"></div>'
     +'<div class="today-task-text'+(it.done?' done':'')+'" onclick="toggleRow(\''+it.id+'\')">'+esc(it.text)+'</div>'
-    +(zn?'<span class="zone-badge">'+esc(zn)+'</span>':'')
-    +'</div>';
+    +chip+'</div>';
   if(open){
-    var opts='<option value="" disabled selected>Перенести на день…</option>';
+    var opts='<option value="" disabled selected>Поставить на день…</option>';
     planDates(14).forEach(function(d){var k=dateKey(d);if(k!==e.dk)opts+='<option value="'+k+'">'+planLabel(d)+'</option>'});
     h+='<div class="row-actions">'
-      +'<select class="row-act select" onchange="dayMove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\',this.value)">'+opts+'</select>'
-      +'<button class="row-act" onclick="dayRemove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')">'
-      +(e.src==='inbox'?'↺ Вернуть во входящие':'✕ Убрать с дня')+'</button>';
-    if(e.src==='inbox')h+='<button class="row-act danger" onclick="deleteInbox(\''+it.id+'\')">✕ Удалить совсем</button>';
+      +'<select class="row-act select" onchange="dayMove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\',this.value,\''+(e.zi||'')+'\')">'+opts+'</select>';
+    if(e.src==='zone'){
+      var isIn=inToday(it.id);
+      h+='<button class="row-act primary" onclick="addToToday(\''+e.zi+'\',\''+it.id+'\')"'+(isIn?' disabled':'')+'>→ В сегодня</button>'
+        +'<button class="row-act" onclick="cancelTask(\''+e.zi+'\',\''+it.id+'\')">⊘ Отменить</button>'
+        +'<button class="row-act danger" onclick="deleteZoneTask(\''+e.zi+'\',\''+it.id+'\')">✕ Удалить</button>';
+    } else {
+      h+='<button class="row-act" onclick="dayRemove(\''+e.src+'\',\''+it.id+'\',\''+e.dk+'\')">'
+        +(e.src==='inbox'?'↺ Вернуть во входящие':'✕ Убрать с дня')+'</button>';
+      if(e.src==='inbox')h+='<button class="row-act danger" onclick="deleteInbox(\''+it.id+'\')">✕ Удалить совсем</button>';
+    }
     h+='</div>';
   }
   return h+'</div>';
 }
+function dayRowHtml(e){return entryRowHtml(e,'day')}
 /* --- конец блока «день решает» ------------------------------------------ */
 
 // RENDER
@@ -1006,24 +1086,12 @@ var h2='';S.reminders.forEach(function(r){h2+='<div class="reminder-item"><div c
 document.getElementById('remind-tasks').innerHTML=h2||'<div class="top-empty">Нет</div>';
 var h3='';(S.zoneOrder||[]).forEach(function(zi){
   var zn=zoneById(zi);if(!zn||!S.zones[zi])return;
-  var ts=S.zones[zi].tasks,cnt=ts.filter(function(t){return!t.done}).length;
+  var ent=zoneEntries(zi),cnt=ent.filter(function(e){return!e.item.done}).length;
   var open=!!_openZones[zi],body='';
   if(open){
     var th='';
-    if(!ts.length)th='<div class="zone-empty">пусто</div>';
-    else ts.forEach(function(t){
-      var isIn=inToday(t.id),act=(_openRow===t.id);
-      th+='<div class="zone-task'+(act?' row-open':'')+'" data-id="'+t.id+'">'
-        +'<div class="zt-line">'
-        +'<div class="small-check'+(t.done?' done':'')+'" onclick="toggleZone(\''+zi+'\',\''+t.id+'\')"></div>'
-        +'<div class="zone-task-text'+(t.done?' done':'')+'" onclick="toggleRow(\''+t.id+'\')">'+esc(t.text)+'</div>'
-        +'<span class="drag-handle">☰</span></div>';
-      if(act)th+='<div class="row-actions">'
-        +'<button class="row-act primary" onclick="addToToday(\''+zi+'\',\''+t.id+'\')"'+(isIn?' disabled':'')+'>→ В сегодня</button>'
-        +'<button class="row-act" onclick="cancelTask(\''+zi+'\',\''+t.id+'\')">⊘ Отменить</button>'
-        +'<button class="row-act danger" onclick="deleteZoneTask(\''+zi+'\',\''+t.id+'\')">✕ Удалить</button></div>';
-      th+='</div>';
-    });
+    if(!ent.length)th='<div class="zone-empty">пусто</div>';
+    else ent.forEach(function(e){th+=entryRowHtml(e,'zone')});
     body='<div class="zone-tasks" id="zone-tasks-'+zi+'">'+th+'</div>'
       +'<div class="add-row"><input class="add-input" id="inp-'+zi+'" placeholder="задача..." onkeydown="if(event.key===\'Enter\')addZoneTask(\''+zi+'\')"><button class="add-btn" onclick="addZoneTask(\''+zi+'\')">+</button></div>';
   }
@@ -1038,8 +1106,15 @@ var h3='';(S.zoneOrder||[]).forEach(function(zi){
 document.getElementById('zones-grid').innerHTML=h3;renderInboxBadge();renderCalNotifs();initSortables()}
 
 // WEEK
-function getWeekDates(){var n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff);var r=[];for(var i=0;i<7;i++){var x=new Date(m);x.setDate(m.getDate()+i);r.push(x)}return r}
-function renderWeek(){var dates=getWeekDates(),ds=todayStr(),h='';dates.forEach(function(date){var dk=dateKey(date),dow=date.getDay(),isT=dk===ds,isW=dow===0;var cls='week-day-card'+(isT?' is-today':'')+(isW?' is-weekend':'');var dn=DAY_FULL[dow];dn=dn[0].toUpperCase()+dn.slice(1);var dl=date.getDate()+' '+MONTHS_RU2[date.getMonth()];var tag=(SCH().tags||{})[dow],tagH=tag?'<span class="week-tag '+tag.c+'">'+tag.t+'</span>':'';
+function getWeekDates(off){var n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff+7*(off||0));var r=[];for(var i=0;i<7;i++){var x=new Date(m);x.setDate(m.getDate()+i);r.push(x)}return r}
+var _weekOff=0;
+function weekShift(n){_weekOff+=n;renderWeek()}
+function weekToday(){_weekOff=0;renderWeek()}
+function renderWeek(){var dates=getWeekDates(_weekOff),ds=todayStr(),h='';
+h+='<div class="week-nav"><button class="cal-nav-btn" onclick="weekShift(-1)">‹</button>'
+  +'<span class="week-nav-label">'+dates[0].getDate()+' '+MONTHS_RU2[dates[0].getMonth()].slice(0,3)+' — '+dates[6].getDate()+' '+MONTHS_RU2[dates[6].getMonth()].slice(0,3)
+  +(_weekOff?'<button class="week-now" onclick="weekToday()">сегодня</button>':'')+'</span>'
+  +'<button class="cal-nav-btn" onclick="weekShift(1)">›</button></div>';dates.forEach(function(date){var dk=dateKey(date),dow=date.getDay(),isT=dk===ds,isW=dow===0;var cls='week-day-card'+(isT?' is-today':'')+(isW?' is-weekend':'');var dn=DAY_FULL[dow];dn=dn[0].toUpperCase()+dn.slice(1);var dl=date.getDate()+' '+MONTHS_RU2[date.getMonth()];var tag=(SCH().tags||{})[dow],tagH=tag?'<span class="week-tag '+tag.c+'">'+tag.t+'</span>':'';
 var fx=(SCH().fixed||{})[dow]||[],fxH='';if(fx.length){fxH='<div class="week-fixed">';fx.forEach(function(f){fxH+='<span class="week-fixed-tag" style="background:'+f.c+'15;color:'+f.c+';border-color:'+f.c+'33">'+(f.o?'<i>':'')+f.t+' '+esc(f.l)+(f.o?'</i>':'')+'</span>'});fxH+='</div>'}
 var fr=(SCH().free||{})[dow]||[],frH='';if(fr.length){frH='<div class="week-free">';fr.forEach(function(f){frH+='<span class="week-free-tag">🟢 '+esc(f)+'</span>'});frH+='</div>'}
 var mt=S.mainTask[dk],mH='';if(mt)mH='<div class="week-main-task"><div class="small-check'+(mt.done?' done':'')+'" onclick="toggleWeekMain(\''+dk+'\')"></div><span style="'+(mt.done?'text-decoration:line-through;color:#bbb':'')+'">⭐ '+esc(mt.text)+'</span></div>';
@@ -1293,17 +1368,17 @@ var calYear,calMonth,calSelectedDate;
    а дела на день (в том числе наговорённые) в них не попадали — секретарь
    молчал ровно про то, ради чего его заводили. Теперь показывают и заметку,
    и что на этот день назначено. */
-function calDigest(dk){
+function calDigest(dk,withTasks){
   var out=[],note=S.calendar[dk];
   if(note)out.push(note);
-  dayEntries(dk).filter(function(e){return!e.item.done}).forEach(function(e){out.push('• '+e.item.text)});
+  if(withTasks)dayEntries(dk).filter(function(e){return!e.item.done}).forEach(function(e){out.push('• '+e.item.text)});
   return out.join(String.fromCharCode(10));
 }
 function renderCalNotifs(){
   var ds=todayStr(),tom=new Date();tom.setDate(tom.getDate()+1);var ts=dateKey(tom);
   [['cal-today-pill','pop-today-text',ds],['cal-tomorrow-pill','pop-tomorrow-text',ts]].forEach(function(x){
     var pill=document.getElementById(x[0]);if(!pill)return;
-    var txt=calDigest(x[2]);
+    var txt=calDigest(x[2],x[2]!==ds);   // на сегодня дела и так первым экраном
     if(txt){pill.classList.add('show');document.getElementById(x[1]).textContent=txt}
     else pill.classList.remove('show');
   });
@@ -1509,7 +1584,9 @@ var _sortables=[];
 function initSortables(){_sortables.forEach(function(s){try{s.destroy()}catch(e){}});_sortables=[];if(typeof Sortable==='undefined')return;/* Перетаскивание дел дня убрано намеренно: список теперь собран из трёх мест
    (сферы, неделя, наговорённое), и порядок строк на экране больше не совпадает
    с порядком записей в памяти — таскать было бы нечего и опасно. */
-var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(ze,{handle:'.zone-drag',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zoneOrder.splice(e.oldIndex,1)[0];S.zoneOrder.splice(e.newIndex,0,i);save()}}));(S.zoneOrder||[]).forEach(function(zi){var el=document.getElementById('zone-tasks-'+zi);if(!el||!S.zones[zi]||S.zones[zi].tasks.length<2)return;_sortables.push(new Sortable(el,{handle:'.drag-handle',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zones[zi].tasks.splice(e.oldIndex,1)[0];S.zones[zi].tasks.splice(e.newIndex,0,i);save()}}))})}
+var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(ze,{handle:'.zone-drag',animation:120,ghostClass:'sortable-ghost',onEnd:function(e){if(e.oldIndex===e.newIndex)return;var i=S.zoneOrder.splice(e.oldIndex,1)[0];S.zoneOrder.splice(e.newIndex,0,i);save()}}));/* Перетаскивание задач ВНУТРИ сферы убрано по той же причине, что и в
+   «Сегодня»: список собран из нескольких мест, порядок строк на экране больше
+   не совпадает с порядком записей в памяти. Сами сферы таскать можно. */}
 
 load();render();cleanupArchive();
 
