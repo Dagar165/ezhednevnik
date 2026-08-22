@@ -575,11 +575,36 @@ body { overflow-x: hidden; }
 [data-theme="dark"] .cal-day:hover { background: #262623; }
 [data-theme="dark"] .day-chip { background: #1b2a3d; color: #9cc4f0; }
 [data-theme="dark"] .cal-dow { color: #97948c; }
+/* ===== ПОЛЯ ВВОДА И НАПОМИНАЛКА (26.08.2026) ============================= */
+
+/* 1. Любое поле мельче 16 px заставляет Safari увеличить страницу при касании,
+      а обратно она сама не возвращается — экран «перекидывает». Три поля
+      просочились мимо общего правила: заметка календаря, вставка JSON и выбор
+      сферы в «Неделе». Перечисляю их поимённо, чтобы не ловить это снова. */
+.cal-editor textarea, #paste-json, .week-add-row select, .inbox-actions select,
+.add-input, input, select, textarea { font-size: 16px; }
+.cal-editor textarea { min-height: 96px; padding: 12px; }
+
+/* 2. Поле, на которое нажали, не должно оказаться под клавиатурой или под
+      кнопкой «⚡ Записать». */
+input, select, textarea { scroll-margin-bottom: 140px; scroll-margin-top: 80px; }
+body.typing .float-inbox-btn { display: none; }
+
+/* 3. Колокольчики: на самой кнопке видно, что за день. */
+.pill-label { white-space: nowrap; }
+
+/* 4. Самые бледные подписи в светлой теме были почти невидимы на солнце
+      (контраст 1,4–1,9 при разумном минимуме 3). Делаем на тон темнее —
+      рисунок интерфейса тот же, читается заметно лучше. */
+.t-remove, .r-del, .z-btn, .drag-handle, .zone-caret, .ib-caret { color: #a3a09b; }
+.hint, .main-task-hint, .zone-empty, .top-empty, .set-empty, .inbox-hint,
+.backup-info, .cal-dow, .cal-note-label, .zone-cnt { color: #85827c; }
+.week-task-zone, .zone-badge { color: #6f6c66; }
 </style>
 </head>
 <body>
 <div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><button class="hdr-btn" onclick="openCalendar()">📅</button><button class="hdr-btn" id="sync-btn" onclick="openSync()">☁</button><button class="hdr-btn" onclick="toggleMenu()" title="Ещё">⋯</button></div></div>
-<div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()">🔴 Сегодня<div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()">🔔 Завтра<div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div>
+<div class="cal-notif-wrap"><div class="cal-notif-pill today-pill" id="cal-today-pill" onclick="toggleCalPopover('today');event.stopPropagation()"><span class="pill-label" id="pill-today-label">🔴 Сегодня</span><div class="cal-popover" id="pop-today" onclick="event.stopPropagation()"><div class="cal-popover-head">Сегодня</div><div class="cal-popover-text" id="pop-today-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div><div class="cal-notif-pill tomorrow-pill" id="cal-tomorrow-pill" onclick="toggleCalPopover('tomorrow');event.stopPropagation()"><span class="pill-label" id="pill-tomorrow-label">🔔 Завтра</span><div class="cal-popover" id="pop-tomorrow" onclick="event.stopPropagation()"><div class="cal-popover-head">Завтра</div><div class="cal-popover-text" id="pop-tomorrow-text"></div><span class="cal-popover-link" onclick="closePopovers();openCalendar()">Открыть →</span></div></div></div>
 <div class="menu-sheet" id="menu-sheet" onclick="if(event.target===this)closeMenu()"><div class="menu-card">
 <button class="menu-item" onclick="closeMenu();openArchive()">📦 Архив<span>выполненное и отменённое</span></button>
 <button class="menu-item" onclick="closeMenu();openBackup()">💾 Данные и копии<span>скачать бэкап, восстановить</span></button>
@@ -593,7 +618,7 @@ body { overflow-x: hidden; }
 <div class="tab-content" id="plan-tab"><div class="plan-header"><div class="plan-title">Утреннее планирование</div><div class="plan-subtitle">Понедельник — штаб. 20 минут, чтобы разложить неделю.</div></div><div class="plan-step"><div class="plan-step-title">1. Разбери входящие</div><div class="plan-step-desc">Каждую задачу — либо раскидай по дням, либо удали. Цель: входящие = 0.</div><button class="plan-step-btn" onclick="switchTab('inbox-tab')">Входящие →</button></div><div class="plan-step"><div class="plan-step-title">2. Обнови зоны</div><div class="plan-step-desc">Пройдись по зонам. Добавь новое, удали неактуальное.</div><button class="plan-step-btn" onclick="switchTab('today-tab')">Сегодня →</button></div><div class="plan-step"><div class="plan-step-title">3. Раскидай по неделе</div><div class="plan-step-desc">Смотри свободные окна (зелёные). Не больше 2-3 задач на тяжёлые дни.</div><button class="plan-step-btn" onclick="switchTab('week-tab')">Неделя →</button></div><div class="plan-step"><div class="plan-step-title">4. Главная задача дня</div><div class="plan-step-desc">Выбери ОДНУ задачу на сегодня — самую важную. Она будет вверху «Сегодня».</div></div><div class="plan-reminder"><p><strong>Вт</strong> и <strong>Сб</strong> — тяжёлые. Не грузи сверх расписания.</p><p><strong>Пн</strong> и <strong>Пт</strong> — дни для проектов (школа, Келек, волонтёры).</p><p><strong>Чт утро</strong> — 3-4 часа глубокой работы до гимназии.</p><p><strong>Вс</strong> — не трогай. День с женой.</p></div></div>
 <button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
-<div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
+<div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-family:monospace;padding:10px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
 <div class="modal-overlay cal-overlay" id="cal-overlay" onclick="if(event.target===this)closeCalendar()"><div class="cal-modal"><div class="cal-modal-head"><span class="cal-modal-title">Календарь</span><button class="cal-close" onclick="closeCalendar()">✕</button></div><div class="cal-scroll"><div class="cal-nav"><button class="cal-nav-btn" onclick="calPrev()">‹</button><span class="cal-month-label" id="cal-month-label"></span><button class="cal-nav-btn" onclick="calNext()">›</button></div><div class="cal-grid" id="cal-grid"></div><div class="cal-editor" id="cal-editor" style="display:none"><div class="cal-editor-title" id="cal-editor-title"></div><div id="cal-day-tasks"></div><div class="cal-note-label">Заметка на день</div><textarea id="cal-textarea" placeholder="Например: концерт в 19:00, взять билеты"></textarea><div class="cal-editor-btns"><button class="cal-del-btn" id="cal-del-btn" onclick="calDeleteNote()" style="display:none">Удалить</button><button class="cal-save-btn" onclick="calSaveNote()">Сохранить</button></div></div></div></div></div>
 <div class="modal-overlay backup-overlay" id="sync-overlay" onclick="if(event.target===this)closeSync()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">☁ Синхронизация</span><button class="backup-close" onclick="closeSync()">✕</button></div><div class="backup-body">
 <div id="sync-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:6px"></div>
@@ -1368,19 +1393,24 @@ var calYear,calMonth,calSelectedDate;
    а дела на день (в том числе наговорённые) в них не попадали — секретарь
    молчал ровно про то, ради чего его заводили. Теперь показывают и заметку,
    и что на этот день назначено. */
-function calDigest(dk,withTasks){
+function calDigest(dk){
   var out=[],note=S.calendar[dk];
   if(note)out.push(note);
-  if(withTasks)dayEntries(dk).filter(function(e){return!e.item.done}).forEach(function(e){out.push('• '+e.item.text)});
+  dayEntries(dk).filter(function(e){return!e.item.done}).forEach(function(e){out.push('• '+e.item.text)});
   return out.join(String.fromCharCode(10));
 }
 function renderCalNotifs(){
   var ds=todayStr(),tom=new Date();tom.setDate(tom.getDate()+1);var ts=dateKey(tom);
-  [['cal-today-pill','pop-today-text',ds],['cal-tomorrow-pill','pop-tomorrow-text',ts]].forEach(function(x){
+  [['cal-today-pill','pop-today-text','pill-today-label','🔴 Сегодня',ds],
+   ['cal-tomorrow-pill','pop-tomorrow-text','pill-tomorrow-label','🔔 Завтра',ts]].forEach(function(x){
     var pill=document.getElementById(x[0]);if(!pill)return;
-    var txt=calDigest(x[2],x[2]!==ds);   // на сегодня дела и так первым экраном
-    if(txt){pill.classList.add('show');document.getElementById(x[1]).textContent=txt}
-    else pill.classList.remove('show');
+    var dk=x[4],txt=calDigest(dk),note=S.calendar[dk],n=dayOpenCount(dk);
+    if(!txt){pill.classList.remove('show');return}
+    pill.classList.add('show');
+    document.getElementById(x[1]).textContent=txt;
+    // На кнопке — сразу видно, что там: заметка (📝) и сколько дел.
+    var lab=document.getElementById(x[2]);
+    if(lab)lab.textContent=x[3]+(note?' 📝':'')+(n?' · '+n:'');
   });
 }
 function closePopovers(){document.getElementById('pop-today').classList.remove('open');document.getElementById('pop-tomorrow').classList.remove('open')}
@@ -1589,6 +1619,19 @@ var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(
    не совпадает с порядком записей в памяти. Сами сферы таскать можно. */}
 
 load();render();cleanupArchive();
+
+/* Пока открыта клавиатура, плавающая кнопка «⚡ Записать» висит ровно над
+   полем ввода и мешает. Прячем её на время набора. */
+document.addEventListener('focusin',function(e){
+  var t=e.target&&e.target.tagName;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT')document.body.classList.add('typing');
+});
+document.addEventListener('focusout',function(){
+  setTimeout(function(){
+    var a=document.activeElement,t=a&&a.tagName;
+    if(!(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'))document.body.classList.remove('typing');
+  },80);
+});
 
 // === ОФЛАЙН + ЗАЩИТА ДАННЫХ ===
 // 1) Сервис-воркер: приложение открывается и работает без интернета.
