@@ -1689,12 +1689,44 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('SW не зарегистрирован:',e)});
   });
-  // Страница теперь открывается из кэша мгновенно, а свежая версия догоняет
-  // фоном. Молча подменять её под руками нельзя — предлагаем обновиться.
-  navigator.serviceWorker.addEventListener('message',function(e){
-    if(e.data&&e.data.type==='ez-new-version'){var b=document.getElementById('update-bar');if(b)b.classList.add('show')}
-  });
 }
+/* --- СВЕЖАЯ ВЕРСИЯ --------------------------------------------------------
+   Страница открывается из кэша мгновенно (см. sw.js), поэтому свежую версию
+   надо догонять фоном и говорить о ней вслух. Раньше это делал сервис-воркер,
+   и делал плохо: его fetch по навигационному запросу молча не срабатывал —
+   кэш не обновлялся неделю, а человек сидел на старой версии и не знал.
+
+   Теперь это делает сама страница, через пару секунд после открытия: спрашивает
+   свежий html (мимо всех кэшей), кладёт его в тот же кэш к следующему запуску и,
+   если он отличается от прежнего, показывает полосу «Приехала новая версия».
+   Проверить можно руками из консоли: ezCheckUpdate().                       */
+function ezCheckUpdate(){
+  if(!window.caches)return Promise.resolve('кэша нет');
+  var url='index.html?fresh='+Date.now();
+  return fetch(url,{cache:'no-store'}).then(function(r){
+    if(!r.ok)throw new Error('сервер ответил '+r.status);
+    return r.text();
+  }).then(function(fresh){
+    return caches.open('ezhednevnik-v7').then(function(c){
+      return c.match('./index.html').then(function(old){
+        return (old?old.text():Promise.resolve('')).then(function(oldText){
+          if(oldText===fresh)return 'та же версия';
+          var opts={headers:{'content-type':'text/html; charset=utf-8'}};
+          return Promise.all([
+            c.put(location.origin+'/', new Response(fresh,opts)),
+            c.put(location.origin+'/index.html', new Response(fresh,opts))
+          ]).then(function(){
+            if(oldText){var b=document.getElementById('update-bar');if(b)b.classList.add('show')}
+            return oldText?'приехала новая версия':'кэш заполнен';
+          });
+        });
+      });
+    });
+  }).catch(function(e){return 'не вышло: '+((e&&e.message)||e)});
+}
+window.ezCheckUpdate=ezCheckUpdate;
+setTimeout(function(){if(navigator.onLine!==false)ezCheckUpdate()},2500);
+window.addEventListener('online',function(){setTimeout(ezCheckUpdate,1500)});
 // 2) Просим браузер не вычищать наши данные (защита от истории с «закрыл вкладку — всё пропало»).
 if(navigator.storage&&navigator.storage.persist){
   navigator.storage.persisted().then(function(already){

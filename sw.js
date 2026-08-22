@@ -13,7 +13,7 @@
    - Иконки, Sortable и Firebase SDK — из кэша мгновенно (они не меняются).
    - Запросы к Firestore/Auth не трогаем: их офлайн-режим Firebase делает сам. */
 
-var CACHE = 'ezhednevnik-v6';
+var CACHE = 'ezhednevnik-v7';
 var ASSETS = [
   './',
   './index.html',
@@ -43,34 +43,13 @@ self.addEventListener('activate', function (e) {
   );
 });
 
-function tellClients(msg) {
-  return self.clients.matchAll({ includeUncontrolled: true }).then(function (list) {
-    list.forEach(function (c) { try { c.postMessage(msg); } catch (e) {} });
-  });
-}
-
-/* Сходить в сеть, положить свежее в кэш и сказать, изменилось ли оно.
-   ВАЖНО: `cached` сюда передают уже отдельной копией (clone), снятой ДО того,
-   как ответ ушёл странице. Иначе браузер успевает вычитать тело на отрисовку,
-   и любое обращение к нему здесь падает — а вместе с ним молча пропадает и
-   сообщение «приехала новая версия». Ровно так и было 23.08.2026. */
-function refresh(req, cached) {
-  return fetch(req).then(function (res) {
-    if (!res || !res.ok) return null;
-    return caches.open(CACHE).then(function (c) {
-      // Кладём под тем адресом, который просили, и заодно под './index.html':
-      // приложение открывают и как '/', и как '/index.html', и обе записи
-      // должны быть свежими, иначе одна из дверей ведёт во вчерашний день.
-      return Promise.all([c.put(req, res.clone()), c.put('./index.html', res.clone())]);
-    }).then(function () {
-      if (!cached) return null;
-      return Promise.all([cached.text(), res.clone().text()]).then(function (t) {
-        if (t[0] !== t[1]) tellClients({ type: 'ez-new-version' });
-        return null;
-      });
-    });
-  }).catch(function () { return null; });   // нет связи — это нормально, работаем из кэша
-}
+/* Обновление кэша перенесено в саму страницу (index.html, блок «свежая версия»).
+   Причина: fetch() внутри сервис-воркера по навигационному запросу оказался
+   ненадёжным — кэш молча не обновлялся неделю, и человек сидел на старой
+   версии, ничего об этом не зная. Страница делает то же самое проще и
+   проверяемо: спрашивает свежий html фоном, кладёт его в этот же кэш и, если
+   он отличается, показывает полосу «Приехала новая версия».
+   Здесь остаётся одно: отдать из кэша мгновенно. */
 
 self.addEventListener('fetch', function (e) {
   var req = e.request;
@@ -81,29 +60,20 @@ self.addEventListener('fetch', function (e) {
     (req.headers.get('accept') || '').indexOf('text/html') !== -1;
 
   if (isHTML) {
-    // respondWith и waitUntil зовём СИНХРОННО, обе от одной работы: если позвать
-    // waitUntil изнутри .then(), Safari считает событие уже закрытым и фоновое
-    // обновление просто не запускается.
-    var work = caches.match(req)
-      .then(function (cached) { return cached || caches.match('./index.html'); })
-      .then(function (have) {
-        if (have) {
-          // Отдаём мгновенно, сеть догоняет фоном — метро больше не держит экран.
-          // Копию для сравнения снимаем здесь, пока тело ответа цело.
-          var forCompare = null;
-          try { forCompare = have.clone(); } catch (err) {}
-          return { res: have, compare: forCompare, again: true };
-        }
-        // Кэша ещё нет (самый первый заход) — только тогда ждём сеть.
-        return fetch(req).then(function (res) {
-          var copy = res.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, copy); });
-          return { res: res, compare: null, again: false };
-        });
-      });
-    e.respondWith(work.then(function (r) { return r.res; }));
-    e.waitUntil(work.then(function (r) { return r.again ? refresh(req, r.compare) : null; })
-                    .catch(function () { return null; }));
+    // Из кэша мгновенно — в метро это разница между рабочим приложением и
+    // белым экраном. Сети здесь не ждём вообще.
+    e.respondWith(
+      caches.match(req)
+        .then(function (cached) { return cached || caches.match('./index.html'); })
+        .then(function (have) {
+          if (have) return have;
+          return fetch(req).then(function (res) {          // самый первый заход
+            var copy = res.clone();
+            caches.open(CACHE).then(function (c) { c.put(req, copy); });
+            return res;
+          });
+        })
+    );
     return;
   }
 
