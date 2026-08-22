@@ -864,6 +864,8 @@ function idbLoad(cb){idbOpen(function(db){if(!db){cb(null);return}try{var tx=db.
 function migrateTasks(s){
   if(!Array.isArray(s.tasks))s.tasks=[];
   var have={};s.tasks.forEach(function(t){have[t.id]=1});
+  var moved=((s.inbox||[]).length+(s.today||[]).length+Object.keys(s.weekTasks||{}).length
+             +Object.keys(s.zones||{}).reduce(function(n,z){return n+(((s.zones[z]||{}).tasks||[]).length)},0))>0;
   function take(o,extra){
     if(!o||!o.id||have[o.id])return null;
     var t={id:o.id,_u:o._u||0,text:o.text||'',zone:null,day:null,box:0,done:!!o.done,
@@ -888,6 +890,15 @@ function migrateTasks(s){
     }
     take(x,{zone:x.zoneId||null,day:todayStr()});
   });
+  // Снимок «как было до переезда» — один раз и навсегда. Если переезд когда-то
+  // окажется неудачным, откатить код мало: старая версия читает старые списки,
+  // а они теперь пустые. Этот снимок — то, из чего можно восстановить.
+  try{
+    if(moved&&!localStorage.getItem('ez-premigrate')){
+      localStorage.setItem('ez-premigrate',JSON.stringify({
+        today:s.today||[],inbox:s.inbox||[],weekTasks:s.weekTasks||{},zones:s.zones||{},at:Date.now()}));
+    }
+  }catch(e){}
   s.inbox=[];s.weekTasks={};s.today=[];
   Object.keys(s.zones||{}).forEach(function(zi){s.zones[zi]={tasks:[]}});
   // Ни дня, ни сферы, ни «входящих» — так дело стало бы невидимым.
