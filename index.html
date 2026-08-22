@@ -636,6 +636,13 @@ body.typing .float-inbox-btn { display: none; }
 [data-theme="dark"] .task-row.voice-work .task-text { color: #d8bf72; }
 [data-theme="dark"] .task-row.voice-dead .task-text { color: #97948c; }
 [data-theme="dark"] .task-text.done { color: #6b6862; }
+/* Кнопка «→ на сегодня» прямо в строке — один тап, без раскрытия. */
+.row-quick { width: 44px; height: 44px; flex-shrink: 0; border: none; background: none; border-radius: 10px;
+             color: #378ADD; font-size: 20px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.row-quick:active { background: #eaf2fb; }
+[data-theme="dark"] .row-quick { color: #9cc4f0; }
+[data-theme="dark"] .row-quick:active { background: #1b2a3d; }
+
 /* ===== ПРАВКА ТЕКСТА ЗАПИСИ (29.08.2026) ================================ */
 .task-edit { padding: 10px 0 12px; }
 .task-edit-area { width: 100%; min-height: 92px; line-height: 1.45; resize: vertical; }
@@ -1237,6 +1244,12 @@ function taskRowHtml(t,where){
     +'<div class="task-main" onclick="toggleRow(\''+t.id+'\')">'
     +'<div class="task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</div>'
     +(chips?'<div class="task-meta">'+chips+'</div>':'')+why+'</div>'
+    /* Один тап «на сегодня» — как было до переделки. Дело получает день, сфера
+       у него остаётся, поэтому оно видно и в «Задачах на сегодня», и в самой
+       карточке сферы. Кнопки нет там, где она бессмысленна: в списке дня и у
+       того, что уже стоит на сегодня. */
+    +((where!=='day'&&!t.done&&t.day!==todayStr())
+       ?'<button class="row-quick" title="Поставить на сегодня" onclick="event.stopPropagation();taskSetDay(\''+t.id+'\',todayStr())">→</button>':'')
     +'<span class="ib-caret">'+(open?'⌃':'⌄')+'</span></div>';
   if(open)h+=taskActionsHtml(t);
   return h+'</div>';
@@ -1249,6 +1262,7 @@ function taskActionsHtml(t){
   ZD().forEach(function(z){zopts+='<option value="'+z.id+'"'+(z.id===t.zone?' selected':'')+'>'+esc(z.name)+'</option>'});
   if(t.zone)zopts+='<option value="none">— без сферы</option>';
   var h='<div class="row-actions">'
+    +((t.day!==todayStr()&&!t.done)?'<button class="row-act primary" onclick="taskSetDay(\''+t.id+'\',todayStr())">→ На сегодня</button>':'')
     +'<button class="row-act" onclick="taskEdit(\''+t.id+'\')">✎ Изменить текст</button>'
     +'<select class="row-act select" onchange="taskSetDay(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+days+'</select>'
     +'<select class="row-act select" onchange="taskSetZone(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+zopts+'</select>';
