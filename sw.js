@@ -1,12 +1,19 @@
 /* Сервис-воркер ежедневника.
-   Задача: приложение должно открываться и работать без интернета.
-   - При установке кэшируем «оболочку» приложения (html, иконки, библиотеки, Firebase SDK).
-   - HTML отдаём по схеме «сеть, а если её нет — кэш»: в онлайне приходят обновления,
-     в офлайне открывается последняя сохранённая версия.
-   - Остальное (иконки, Sortable, Firebase SDK) отдаём из кэша мгновенно.
-   - Запросы данных к Firestore/Auth НЕ кэшируем — их офлайн-режим Firebase делает сам. */
+   Задача: приложение должно открываться мгновенно и работать без интернета.
 
-var CACHE = 'ezhednevnik-v5';
+   Главная правка 22.08.2026 (аудит № 2, «метро»).
+   Было: html сначала запрашивался из сети и только при ОШИБКЕ брался из кэша.
+   Под землёй связь формально есть, но не отвечает — запрос висел десятками
+   секунд, и всё это время человек смотрел на белый экран, хотя рабочая копия
+   лежала в кэше рядом.
+   Стало: html отдаётся из кэша СРАЗУ, а сеть проверяется фоном и обновляет
+   кэш к следующему запуску. Если фоном приехала другая версия — приложение
+   получает сообщение и говорит об этом вслух.
+
+   - Иконки, Sortable и Firebase SDK — из кэша мгновенно (они не меняются).
+   - Запросы к Firestore/Auth не трогаем: их офлайн-режим Firebase делает сам. */
+
+var CACHE = 'ezhednevnik-v6';
 var ASSETS = [
   './',
   './index.html',
@@ -36,23 +43,54 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+function tellClients(msg) {
+  return self.clients.matchAll({ includeUncontrolled: true }).then(function (list) {
+    list.forEach(function (c) { try { c.postMessage(msg); } catch (e) {} });
+  });
+}
+
+/* Сходить в сеть, положить свежее в кэш и сказать, изменилось ли оно. */
+function refresh(req, cached) {
+  return fetch(req).then(function (res) {
+    if (!res || !res.ok) return null;
+    var copy = res.clone();
+    return caches.open(CACHE).then(function (c) { return c.put(req, copy); })
+      .then(function () {
+        if (!cached) return null;
+        return Promise.all([cached.clone().text(), res.clone().text()]).then(function (t) {
+          if (t[0] !== t[1]) tellClients({ type: 'ez-new-version' });
+          return null;
+        });
+      });
+  }).catch(function () { return null; });   // нет связи — это нормально, работаем из кэша
+}
+
 self.addEventListener('fetch', function (e) {
   var req = e.request;
-  if (req.method !== 'GET') return;                       // запись данных не трогаем
+  if (req.method !== 'GET') return;                             // запись данных не трогаем
   if (new URL(req.url).origin !== self.location.origin) return; // чужие домены (Firestore/Auth) — мимо
 
   var isHTML = req.mode === 'navigate' ||
     (req.headers.get('accept') || '').indexOf('text/html') !== -1;
 
   if (isHTML) {
-    // Сеть в приоритете (чтобы приходили обновления), офлайн — из кэша.
     e.respondWith(
-      fetch(req).then(function (res) {
-        var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(req, copy); });
-        return res;
-      }).catch(function () {
-        return caches.match(req).then(function (r) { return r || caches.match('./index.html'); });
+      caches.match(req).then(function (cached) {
+        if (!cached) cached = null;
+        return caches.match('./index.html').then(function (fallback) {
+          var have = cached || fallback;
+          if (have) {
+            // Отдаём мгновенно, сеть догоняет фоном — метро больше не держит экран.
+            e.waitUntil(refresh(req, have));
+            return have;
+          }
+          // Кэша ещё нет (самый первый заход) — только тогда ждём сеть.
+          return fetch(req).then(function (res) {
+            var copy = res.clone();
+            caches.open(CACHE).then(function (c) { c.put(req, copy); });
+            return res;
+          });
+        });
       })
     );
     return;
