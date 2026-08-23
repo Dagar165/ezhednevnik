@@ -636,6 +636,21 @@ body.typing .float-inbox-btn { display: none; }
 [data-theme="dark"] .task-row.voice-work .task-text { color: #d8bf72; }
 [data-theme="dark"] .task-row.voice-dead .task-text { color: #97948c; }
 [data-theme="dark"] .task-text.done { color: #6b6862; }
+/* Главная задача дня — обычная строка дела внутри своей рамки. */
+.main-task-wrap { margin: 0 -6px -4px; }
+.main-task-wrap .task-row { border-bottom: none; }
+.main-task-wrap .task-text { font-size: 15px; font-weight: 600; }
+
+/* Архив: строка «хранится без срока» и честная кнопка удаления. */
+.arch-note { padding: 10px 16px 2px; font-size: 12.5px; line-height: 1.5; color: #85827c; }
+.arch-clear-row { padding: 14px 16px 18px; text-align: right; }
+.arch-clear-btn { min-height: 44px; padding: 0 14px; font-size: 13px; font-family: inherit;
+                  color: #a06a63; background: none; border: 0.5px solid #e6e2da; border-radius: 10px; cursor: pointer; }
+.arch-clear-btn:active { background: #faf0ee; }
+[data-theme="dark"] .arch-note { color: #97948c; }
+[data-theme="dark"] .arch-clear-btn { color: #d99a90; border-color: #3a3a35; }
+[data-theme="dark"] .arch-clear-btn:active { background: #2e2422; }
+
 /* Кнопка «→ на сегодня» прямо в строке — один тап, без раскрытия. */
 .row-quick { width: 44px; height: 44px; flex-shrink: 0; border: none; background: none; border-radius: 10px;
              color: #378ADD; font-size: 20px; font-weight: 700; font-family: inherit; cursor: pointer; }
@@ -912,6 +927,21 @@ function migrateTasks(s){
     }
     take(x,{zone:x.zoneId||null,day:todayStr()});
   });
+  // Главные задачи дня — из отдельного списка в общий, со звездой. Ключ дня
+  // даёт постоянный id: переезд можно повторять, и на двух устройствах выйдет
+  // одна и та же запись, а не две.
+  Object.keys(s.mainTask||{}).forEach(function(dk){
+    var m=s.mainTask[dk];if(!m||!m.text)return;
+    var id='mt-'+dk;
+    if((s._tomb||{})[id])return;                     // это дело уже удалили руками
+    if(!have[id]){
+      have[id]=1;
+      s.tasks.push({id:id,_u:m._u||0,text:m.text,zone:m.zone||null,day:dk,box:0,
+                    done:!!m.done,main:1,createdAt:0,created:''});
+    }
+  });
+  s.mainTask={};
+
   // Снимок «как было до переезда» — один раз и навсегда. Если переезд когда-то
   // окажется неудачным, откатить код мало: старая версия читает старые списки,
   // а они теперь пустые. Этот снимок — то, из чего можно восстановить.
@@ -1032,19 +1062,27 @@ window.addEventListener('pagehide',function(){try{localStorage.setItem('ezhednev
 })();
 
 // Auto-cleanup archive: remove entries older than 61 days
-function cleanupArchive(){
-  if(!S.archive||!S.archive.length)return;
-  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-61);
-  var cutoffStr=dateKey(cutoff);
-  var before=S.archive.length;
-  S.archive=S.archive.filter(function(a){
-    if(!a.archivedDate)return true;
-    if(a.archivedDate>=cutoffStr)return true;
-    ezTomb(a.id);            // без надгробия второе устройство вернёт запись назад
-    return false;
-  });
-  var removed=before-S.archive.length;
-  if(removed>0){save();toast('🧹 Архив: удалено '+removed+' старых записей (>61 дн.)');}
+/* Архив ничего не удаляет сам (правка 23.08.2026).
+   Было: раз в запуск всё старше 61 дня стиралось молча и с надгробием — то
+   есть навсегда и на всех устройствах разом. Человек узнавал об этом из
+   всплывашки «удалено N записей», когда возвращать было уже нечего. Заодно
+   это отрезало любой разбор длиннее двух месяцев: «что я делал в мае»
+   ответить было нечем.
+   Стало: архив хранится без срока, удаляет только человек своей рукой.
+   Смысл чистки был один — не упереться в предел документа облака (1 МБ).
+   Этот предел и так проверяется при отправке (см. cloudPush), но там о нём
+   узнаёшь в момент отказа. Здесь предупреждаем заранее и один раз в день. */
+function plural(n,a,b,c){var d=n%100,e=n%10;return n+' '+(d>=11&&d<=14?c:(e===1?a:(e>=2&&e<=4?b:c)))}
+function stateKb(){try{return Math.round(JSON.stringify(S).length/1024)}catch(e){return 0}}
+function archiveKb(){try{return Math.round(JSON.stringify(S.archive||[]).length/1024)}catch(e){return 0}}
+function archiveWatch(){
+  var kb=stateKb();
+  if(kb<700)return;                                    // предел отправки — 900 КБ
+  try{
+    if(localStorage.getItem('ez-size-warned')===todayStr())return;
+    localStorage.setItem('ez-size-warned',todayStr());
+  }catch(e){}
+  toast('Ежедневник вырос до '+kb+' КБ из 1000. Скачай копию 💾 и почисти архив вручную.');
 }
 
 function switchTab(id){document.querySelectorAll('.tab-content').forEach(function(e){e.classList.remove('active')});document.querySelectorAll('.tab-btn').forEach(function(e){e.classList.remove('active')});document.getElementById(id).classList.add('active');var idx=['today-tab','week-tab','inbox-tab','plan-tab'].indexOf(id);var btns=document.querySelectorAll('.tab-btn');if(idx>=0&&btns[idx])btns[idx].classList.add('active');/* Вкладку, на которую переключились, всегда перерисовываем заново. Без этого
@@ -1054,10 +1092,28 @@ function switchTab(id){document.querySelectorAll('.tab-content').forEach(functio
 if(id==='today-tab')render();if(id==='week-tab')renderWeek();if(id==='inbox-tab')renderInbox()}
 
 // MAIN TASK
-function renderMainTask(){var ds=todayStr(),mt=S.mainTask[ds],el=document.getElementById('main-task-section');var h='<div class="main-task-label">⭐ Главная задача дня</div>';if(mt){var zn=null;ZD().forEach(function(z){if(z.id===mt.zone)zn=z});h+='<div class="main-task-display" onclick="toggleMainTask()"><div class="main-task-check'+(mt.done?' done':'')+'"></div><div><div class="main-task-text'+(mt.done?' done':'')+'">'+esc(mt.text)+'</div>'+(zn?'<div class="main-task-zone">'+esc(zn.name)+'</div>':'')+'</div><span class="main-task-edit" onclick="event.stopPropagation();editMainTask()">✎</span></div>'}else{h+='<div class="main-task-form"><input class="add-input" id="main-task-input" placeholder="Одна задача, которую ТОЧНО закроешь" onkeydown="if(event.key===\'Enter\')saveMainTask()"><select class="add-input" id="main-task-zone" style="flex:0 0 auto;min-width:100px">';ZD().forEach(function(z){h+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});h+='</select><button class="add-btn" onclick="saveMainTask()">✓</button></div><div class="main-task-hint">Одна самая важная задача на сегодня</div>'}el.innerHTML=h}
-function saveMainTask(){var t=document.getElementById('main-task-input').value.trim();if(!t)return;S.mainTask[todayStr()]={text:t,zone:document.getElementById('main-task-zone').value,done:false,_u:Date.now()};save();renderMainTask()}
-function toggleMainTask(){var m=S.mainTask[todayStr()];if(m){m.done=!m.done;ezTouch(m);save();renderMainTask()}}
-function editMainTask(){ezTomb('main:'+todayStr());delete S.mainTask[todayStr()];save();renderMainTask()}
+function renderMainTask(){
+  var ds=todayStr(),m=mainOf(ds),el=document.getElementById('main-task-section');
+  var h='<div class="main-task-label">⭐ Главная задача дня</div>';
+  if(m){
+    // Обычная строка дела — значит и кнопки у неё те же, что у всех остальных.
+    h+='<div class="main-task-wrap">'+taskRowHtml(m,'day')+'</div>';
+  }else{
+    h+='<div class="main-task-form"><input class="add-input" id="main-task-input" placeholder="Одна задача, которую ТОЧНО закроешь" onkeydown="if(event.key===\'Enter\')saveMainTask()"><select class="add-input" id="main-task-zone" style="flex:0 0 auto;min-width:100px">';
+    ZD().forEach(function(z){h+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});
+    h+='</select><button class="add-btn" onclick="saveMainTask()">✓</button></div>'
+     +'<div class="main-task-hint">Или нажми на любое дело ниже и выбери «⭐ Сделать главной».</div>';
+  }
+  el.innerHTML=h;
+}
+function saveMainTask(){
+  var i=document.getElementById('main-task-input');if(!i)return;
+  var t=(i.value||'').trim();if(!t)return;
+  var z=document.getElementById('main-task-zone');
+  S.tasks.forEach(function(x){if(x.day===todayStr()&&x.main){delete x.main;ezTouch(x)}});
+  addTask({text:t,zone:(z&&z.value)||null,day:todayStr(),box:0,main:1});
+  i.value='';save();rerenderAll();
+}
 
 /* --- РАСКЛАДКА ПОД ТЕЛЕФОН (аудит № 2) ------------------------------------
    Две беды, которые чинит этот кусок:
@@ -1140,6 +1196,27 @@ function lateTasks(){
   return S.tasks.filter(function(t){return t.day&&t.day<d&&!t.done})
                 .sort(function(a,b){return a.day.localeCompare(b.day)});
 }
+/* Главная задача дня (правка 23.08.2026).
+   Было: она жила в отдельном списке S.mainTask[день] — единственная сущность,
+   не переехавшая в общий список дел. Отсюда: обычное дело нельзя было назначить
+   главным (только перепечатать руками), главную нельзя было перенести на другой
+   день, кнопка ✎ у неё не правила текст, а УДАЛЯЛА запись, и закрытая главная
+   не попадала в архив.
+   Стало: главная задача — обычное дело со звездой (t.main). Все действия над
+   ней общие: правка текста, перенос, отмена, удаление, архив, слияние между
+   устройствами. Звезда одна на день: назначая новую, снимаем прежнюю. */
+function mainOf(dk){var r=null;S.tasks.forEach(function(t){if(!r&&t.day===dk&&t.main)r=t});return r}
+function taskSetMain(id){
+  var t=taskById(id);if(!t)return;
+  if(!t.day){t.day=todayStr();t.box=0}                 // без дня главной не бывает
+  S.tasks.forEach(function(x){if(x.id!==t.id&&x.day===t.day&&x.main){delete x.main;ezTouch(x)}});
+  t.main=1;fixHome(t);ezTouch(t);save();rerenderAll();
+  toast('⭐ Главная задача · '+dayWord(t.day));
+}
+function taskUnsetMain(id){
+  var t=taskById(id);if(!t)return;
+  delete t.main;ezTouch(t);save();rerenderAll();toast('Звезда снята — дело осталось на месте');
+}
 function zoneTasks(zi){
   var free=[],dated=[],done=[];
   S.tasks.forEach(function(t){
@@ -1169,6 +1246,9 @@ function taskToggle(id){
 function taskSetDay(id,dk){
   var t=taskById(id);if(!t)return;
   t.day=dk||null;if(dk)t.box=0;
+  if(!dk)delete t.main;                                        // ушло с дня — звезды нет
+  // Переносим главную туда, где главная уже есть: звезда остаётся у хозяина дня.
+  if(dk&&t.main)S.tasks.forEach(function(x){if(x.id!==t.id&&x.day===dk&&x.main)delete t.main});
   fixHome(t);ezTouch(t);save();rerenderAll();
   if(dk)toast('→ '+dayWord(dk)+(dk===todayStr()?' · смотри «Сегодня»':''));
   else{var zn=zoneById(t.zone);toast(zn?('↩ Вернулось в сферу «'+zn.name+'»'):'↩ Вернулось во «Входящие»')}
@@ -1247,7 +1327,7 @@ function taskRowHtml(t,where){
     +'<div class="zt-line">'
     +'<div class="check-box'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
     +'<div class="task-main" onclick="toggleRow(\''+t.id+'\')">'
-    +'<div class="task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</div>'
+    +'<div class="task-text'+(t.done?' done':'')+(t.main?' is-main':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</div>'
     +(chips?'<div class="task-meta">'+chips+'</div>':'')+why+'</div>'
     /* Один тап «на сегодня» — как было до переделки. Дело получает день, сфера
        у него остаётся, поэтому оно видно и в «Задачах на сегодня», и в самой
@@ -1277,6 +1357,9 @@ function taskActionsHtml(t){
     +(t.day?('<button class="row-act" onclick="taskSetDay(\''+t.id+'\',null)">↩ Убрать с дня'
              +(zoneById(t.zone)?(' — вернётся в «'+esc((zoneById(t.zone)||{}).name)+'»'):' — уйдёт во «Входящие»')+'</button>'):'')
     +'<button class="row-act" onclick="taskEdit(\''+t.id+'\')">✎ Изменить текст</button>'
+    +(t.done?''
+      :(t.main?'<button class="row-act" onclick="taskUnsetMain(\''+t.id+'\')">☆ Снять звезду</button>'
+              :'<button class="row-act" onclick="taskSetMain(\''+t.id+'\')">⭐ Сделать главной'+(t.day?'':' на сегодня')+'</button>'))
     +'<select class="row-act select" onchange="taskSetDay(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+days+'</select>'
     +'<select class="row-act select" onchange="taskSetZone(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+zopts+'</select>';
   if(t.voice&&window.voiceHasAudio&&window.voiceHasAudio(t.id))
@@ -1294,10 +1377,12 @@ function toggleLate(){_showLate=!_showLate;render()}
 // RENDER
 
 function render(){document.getElementById('date-label').textContent=todayLabel();if(new Date().getDay()===0)document.getElementById('review-banner').style.display='block';renderMainTask();
-var ds0=todayStr(),ent=dayTasks(ds0),late=lateTasks(),h1='';
+var ds0=todayStr(),m0=mainOf(ds0),late=lateTasks(),h1='';
+// Главная показана отдельным блоком выше — в общем списке её не повторяем.
+var ent=dayTasks(ds0).filter(function(t){return!m0||t.id!==m0.id});
 var ac=ent.filter(function(t){return!t.done}).length;
-document.getElementById('today-count').textContent=ac?ac+' задач':'';
-if(!ent.length&&!late.length)h1='<div class="top-empty">Пусто. Наговори во «Входящих» или возьми из сферы ниже.</div>';
+document.getElementById('today-count').textContent=ac?plural(ac,'задача','задачи','задач'):'';
+if(!ent.length&&!late.length)h1='<div class="top-empty">'+(m0?'Кроме главной — на сегодня ничего.':'Пусто. Наговори во «Входящих» или возьми из сферы ниже.')+'</div>';
 else ent.forEach(function(t){h1+=taskRowHtml(t,'day')});
 if(late.length){
   h1+='<div class="late-fold" onclick="toggleLate()">⏳ Просрочено · '+late.length+'<span>'+(_showLate?'скрыть':'показать')+'</span></div>';
@@ -1339,21 +1424,19 @@ h+='<div class="week-nav"><button class="cal-nav-btn" onclick="weekShift(-1)">�
   +'<button class="cal-nav-btn" onclick="weekShift(1)">›</button></div>';dates.forEach(function(date){var dk=dateKey(date),dow=date.getDay(),isT=dk===ds,isW=dow===0;var cls='week-day-card'+(isT?' is-today':'')+(isW?' is-weekend':'');var dn=DAY_FULL[dow];dn=dn[0].toUpperCase()+dn.slice(1);var dl=date.getDate()+' '+MONTHS_RU2[date.getMonth()];var tag=(SCH().tags||{})[dow],tagH=tag?'<span class="week-tag '+tag.c+'">'+tag.t+'</span>':'';
 var fx=(SCH().fixed||{})[dow]||[],fxH='';if(fx.length){fxH='<div class="week-fixed">';fx.forEach(function(f){fxH+='<span class="week-fixed-tag" style="background:'+f.c+'15;color:'+f.c+';border-color:'+f.c+'33">'+(f.o?'<i>':'')+f.t+' '+esc(f.l)+(f.o?'</i>':'')+'</span>'});fxH+='</div>'}
 var fr=(SCH().free||{})[dow]||[],frH='';if(fr.length){frH='<div class="week-free">';fr.forEach(function(f){frH+='<span class="week-free-tag">🟢 '+esc(f)+'</span>'});frH+='</div>'}
-var mt=S.mainTask[dk],mH='';if(mt)mH='<div class="week-main-task"><div class="small-check'+(mt.done?' done':'')+'" onclick="toggleWeekMain(\''+dk+'\')"></div><span style="'+(mt.done?'text-decoration:line-through;color:#bbb':'')+'">⭐ '+esc(mt.text)+'</span></div>';
 var wtH='';dayTasks(dk).forEach(function(t){var zn=zoneById(t.zone);
   wtH+='<div class="week-task-item"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
-    +'<span class="week-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'
+    +'<span class="week-task-text'+(t.done?' done':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</span>'
     +(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
     +'<button class="z-btn del-t" title="Снять с дня — дело останется в своей сфере или уйдёт во «Входящие»" onclick="taskSetDay(\''+t.id+'\',null)">✕</button></div>'});
 var aH='<div class="week-add-row"><input class="add-input" id="week-inp-'+dk+'" placeholder="+ задача" onkeydown="if(event.key===\'Enter\')addWeekTask(\''+dk+'\')"><select class="add-input" id="week-zone-'+dk+'" style="flex:0 0 auto;max-width:110px">';ZD().forEach(function(z){aH+='<option value="'+z.id+'">'+esc(z.name)+'</option>'});aH+='</select><button class="add-btn" onclick="addWeekTask(\''+dk+'\')">+</button></div>';
-h+='<div class="'+cls+'"><div class="week-day-head"><span class="week-day-name">'+(isT?'● ':'')+dn+'<span class="week-day-date">'+dl+'</span></span>'+tagH+'</div><div class="week-day-body">'+fxH+frH+mH+wtH+aH+'</div></div>'});document.getElementById('week-container').innerHTML=h}
+h+='<div class="'+cls+'"><div class="week-day-head"><span class="week-day-name">'+(isT?'● ':'')+dn+'<span class="week-day-date">'+dl+'</span></span>'+tagH+'</div><div class="week-day-body">'+fxH+frH+wtH+aH+'</div></div>'});document.getElementById('week-container').innerHTML=h}
 function addWeekTask(dk){
   var i=document.getElementById('week-inp-'+dk),z=document.getElementById('week-zone-'+dk),t=i.value.trim();
   if(!t)return;
   addTask({text:t,zone:z.value||null,day:dk});
   i.value='';save();rerenderAll();
 }
-function toggleWeekMain(dk){if(S.mainTask[dk]){S.mainTask[dk].done=!S.mainTask[dk].done;ezTouch(S.mainTask[dk]);save();renderWeek();if(dk===todayStr())renderMainTask()}}
 
 // INBOX
 // Когда запись создана. createdAt (с временем) появился 21.08.2026;
@@ -1450,8 +1533,22 @@ function restoreFromArchive(ai){
   save();renderArchive();render();try{renderInbox();renderInboxBadge()}catch(e){}
   toast('Возвращено '+back);
 }
-function clearArchive(){if(!confirm('Очистить архив?'))return;S.archive.forEach(function(a){ezTomb(a.id)});S.archive=[];save();renderArchive()}
-function renderArchive(){var c=S.archive.length;document.getElementById('arch-count').textContent=c?c+' задач':'пусто';var b=document.getElementById('archive-body');if(!c){b.innerHTML='<div class="arch-empty">Архив пуст</div>';return}var g={},o=[];S.archive.forEach(function(a){var k=a.archivedAt||'Ранее';if(!g[k]){g[k]=[];o.push(k)}g[k].push(a)});var h='';o.forEach(function(d){h+='<div><div class="arch-date-label">'+esc(d)+'</div>';g[d].forEach(function(a){h+='<div class="arch-task">'+(a.status==='done'?'<div class="arch-done-icon"></div>':'<div class="arch-cancel-icon">⊘</div>')+'<div class="arch-task-text">'+esc(a.text)+'</div><span class="arch-zone-badge">'+esc(a.zone)+'</span><span class="arch-status '+a.status+'">'+(a.status==='done'?'✓':'⊘')+'</span><button class="restore-btn" onclick="restoreFromArchive(\''+a.id+'\')">вернуть</button></div>'});h+='</div>'});h+='<div style="padding:10px 16px;text-align:right"><button style="font-size:12px;color:#ccc;background:none;border:none;cursor:pointer" onclick="clearArchive()">Очистить</button></div>';b.innerHTML=h}
+function clearArchive(){
+  var n=(S.archive||[]).length;if(!n)return;
+  /* Единственное место, где записи исчезают насовсем. Раз архив больше не
+     чистится сам, здесь человек должен понимать, на что соглашается. */
+  if(!confirm('Удалить '+plural(n,'запись','записи','записей')+' архива?'+String.fromCharCode(10,10)
+    +'Отменить это нельзя, и на других устройствах они тоже пропадут.'+String.fromCharCode(10)
+    +'Сначала лучше скачать копию: закрой архив и нажми 💾.'))return;
+  S.archive.forEach(function(a){ezTomb(a.id)});S.archive=[];save();renderArchive();
+  toast('Архив очищен');
+}
+function archiveNoteHtml(){
+  var kb=archiveKb();
+  return '<div class="arch-note">Хранится без срока — само ничего не удаляется. '
+    +plural(S.archive.length,'запись','записи','записей')+(kb>=10?(' · ≈'+kb+' КБ'):'')+'.</div>';
+}
+function renderArchive(){var c=S.archive.length;document.getElementById('arch-count').textContent=c?plural(c,'задача','задачи','задач'):'пусто';var b=document.getElementById('archive-body');if(!c){b.innerHTML='<div class="arch-empty">Архив пуст</div>';return}var g={},o=[];S.archive.forEach(function(a){var k=a.archivedAt||'Ранее';if(!g[k]){g[k]=[];o.push(k)}g[k].push(a)});var h=archiveNoteHtml();o.forEach(function(d){h+='<div><div class="arch-date-label">'+esc(d)+'</div>';g[d].forEach(function(a){h+='<div class="arch-task">'+(a.status==='done'?'<div class="arch-done-icon"></div>':'<div class="arch-cancel-icon">⊘</div>')+'<div class="arch-task-text">'+esc(a.text)+'</div><span class="arch-zone-badge">'+esc(a.zone)+'</span><span class="arch-status '+a.status+'">'+(a.status==='done'?'✓':'⊘')+'</span><button class="restore-btn" onclick="restoreFromArchive(\''+a.id+'\')">вернуть</button></div>'});h+='</div>'});h+='<div class="arch-clear-row"><button class="arch-clear-btn" onclick="clearArchive()">Удалить весь архив</button></div>';b.innerHTML=h}
 
 // BACKUP
 function openBackup(){renderBackupStatus();document.getElementById('backup-overlay').classList.add('open')}
@@ -1583,14 +1680,11 @@ function calSelectDay(dk){
 function renderCalDay(){
   var box=document.getElementById('cal-day-tasks');if(!box)return;
   var dk=calSelectedDate,ts=dayTasks(dk),h='';
-  var mt=S.mainTask[dk];
-  if(mt)h+='<div class="cal-task"><div class="small-check'+(mt.done?' done':'')+'" onclick="toggleWeekMain(\''+dk+'\');renderCalDay();renderCal()"></div>'
-    +'<span class="cal-task-text'+(mt.done?' done':'')+'">⭐ '+esc(mt.text)+'</span></div>';
-  if(!ts.length&&!mt)h+='<div class="set-empty">Дел на этот день нет</div>';
+  if(!ts.length)h+='<div class="set-empty">Дел на этот день нет</div>';
   ts.forEach(function(t){
     var zn=zoneById(t.zone);
     h+='<div class="cal-task"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
-      +'<span class="cal-task-text'+(t.done?' done':'')+'">'+esc(t.text)+'</span>'
+      +'<span class="cal-task-text'+(t.done?' done':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</span>'
       +(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
       +'<button class="z-btn del-t" title="Снять с этого дня" onclick="taskSetDay(\''+t.id+'\',null)">✕</button></div>';
   });
@@ -1763,7 +1857,7 @@ var ze=document.getElementById('zones-grid');if(ze)_sortables.push(new Sortable(
    «Сегодня»: список собран из нескольких мест, порядок строк на экране больше
    не совпадает с порядком записей в памяти. Сами сферы таскать можно. */}
 
-load();render();cleanupArchive();
+load();render();archiveWatch();
 
 /* Пока открыта клавиатура, плавающая кнопка «⚡ Записать» висит ровно над
    полем ввода и мешает. Прячем её на время набора. */
