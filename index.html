@@ -636,6 +636,13 @@ body.typing .float-inbox-btn { display: none; }
 [data-theme="dark"] .task-row.voice-work .task-text { color: #d8bf72; }
 [data-theme="dark"] .task-row.voice-dead .task-text { color: #97948c; }
 [data-theme="dark"] .task-text.done { color: #6b6862; }
+/* Правка записи прямо в календаре. */
+.cal-task.editing { display: block; padding: 8px 0 4px; }
+.cal-task.editing .task-edit-area { width: 100%; min-height: 84px; }
+.cal-task-text { cursor: pointer; }
+.cal-hint { font-size: 12px; color: #a3a09b; padding: 4px 2px 0; }
+[data-theme="dark"] .cal-hint { color: #85827c; }
+
 /* Метка «в календаре» у дела и свёрнутая текучка внутри дня календаря. */
 .cal-chip { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 7px;
             background: #eef3fb; color: #4a7bb5; margin-left: 4px; }
@@ -1719,6 +1726,7 @@ h+='<div class="cal-day'+(it?' today':'')+(n?' has-note':'')+(cnt?' has-tasks':'
    заметка. Раньше в календаре жила только заметка, и задача с датой в него не
    попадала вообще. */
 function calSelectDay(dk){
+  _calEdit=null;
   calSelectedDate=dk;
   var parts=dk.split('-'),dnum=parseInt(parts[2],10),mon=parseInt(parts[1],10)-1;
   document.getElementById('cal-editor').style.display='block';
@@ -1729,28 +1737,68 @@ function calSelectDay(dk){
 }
 var _showDayTasks=false;
 function toggleDayTasks(){_showDayTasks=!_showDayTasks;renderCalDay()}
+
+/* Правка текста прямо в календаре. Раньше поправить запись можно было только
+   найдя её в карточке сферы: в календаре строка была мёртвой. Для наговорённого
+   это особенно неудобно — именно там расшифровка чаще всего просит поправки.
+   Правка живёт на своей переменной и со своим id поля: то же дело может быть
+   открыто на правку и в списке за оверлеем, а два поля с одинаковым id — это
+   молчаливая потеря текста при сохранении. */
+var _calEdit=null;
+function calEdit(id){
+  _calEdit=id;renderCalDay();
+  setTimeout(function(){
+    var el=document.getElementById('caledit-'+id);
+    if(el){el.focus();try{el.selectionStart=el.selectionEnd=el.value.length}catch(e){}}
+  },40);
+}
+function calEditCancel(){_calEdit=null;renderCalDay()}
+function calEditSave(id){
+  var el=document.getElementById('caledit-'+id),t=taskById(id);
+  if(!el||!t)return;
+  var v=(el.value||'').trim();
+  if(!v){toast('Пустую запись не сохранить — убери её крестиком');return}
+  if(v!==t.text){t.text=v;ezTouch(t)}
+  _calEdit=null;save();rerenderAll();toast('Изменено');
+}
+function calUseRaw(id){
+  var t=taskById(id),el=document.getElementById('caledit-'+id);
+  if(t&&el&&t.raw){el.value=t.raw;el.focus()}
+}
+/* Одна строка календаря: событие (dim=false) или обычное дело дня (dim=true). */
+function calTaskRow(t,dim){
+  if(_calEdit===t.id)
+    return '<div class="cal-task editing">'
+      +'<textarea id="caledit-'+t.id+'" class="add-input task-edit-area">'+esc(t.text)+'</textarea>'
+      +(t.raw?'<div class="task-raw"><b>Что было сказано:</b> '+esc(t.raw)+'</div>':'')
+      +'<div class="row-actions">'
+      +'<button class="row-act primary" onclick="calEditSave(\''+t.id+'\')">✓ Сохранить</button>'
+      +'<button class="row-act" onclick="calEditCancel()">Отмена</button>'
+      +(t.raw?'<button class="row-act" onclick="calUseRaw(\''+t.id+'\')">⤵ Взять целиком из расшифровки</button>':'')
+      +'</div></div>';
+  var zn=zoneById(t.zone);
+  return '<div class="cal-task'+(dim?' dim':'')+'">'
+    +'<div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
+    +'<span class="cal-task-text'+(t.done?' done':'')+'" title="Нажми, чтобы поправить текст" onclick="calEdit(\''+t.id+'\')">'
+    +(t.main?'⭐ ':'')+esc(t.text)+'</span>'
+    +((!dim&&zn)?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
+    +(dim?'<button class="z-btn" title="Показывать в календаре" onclick="taskToCal(\''+t.id+'\')">📅</button>'
+         :'<button class="z-btn del-t" title="Убрать из календаря — дело останется на этом дне" onclick="taskFromCal(\''+t.id+'\')">✕</button>')
+    +'</div>';
+}
 function renderCalDay(){
   var box=document.getElementById('cal-day-tasks');if(!box)return;
   var dk=calSelectedDate,ev=calTasks(dk),rest=dayOnlyTasks(dk),h='';
   if(!ev.length)h+='<div class="set-empty">В календаре на этот день ничего нет</div>';
-  ev.forEach(function(t){
-    var zn=zoneById(t.zone);
-    h+='<div class="cal-task"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
-      +'<span class="cal-task-text'+(t.done?' done':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</span>'
-      +(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
-      +'<button class="z-btn del-t" title="Убрать из календаря — дело останется на этом дне" onclick="taskFromCal(\''+t.id+'\')">✕</button></div>';
-  });
+  ev.forEach(function(t){h+=calTaskRow(t,false)});
+  if(ev.length)h+='<div class="cal-hint">Нажми на текст записи, чтобы поправить его.</div>';
   h+='<div class="set-row" style="margin-top:8px"><input class="add-input" id="cal-task-input" placeholder="+ событие на этот день" onkeydown="if(event.key===\'Enter\')calAddTask()"><button class="add-btn" onclick="calAddTask()">+</button></div>';
   // Обычные дела этого дня рядом, но свёрнуты: календарь остаётся про планы,
   // а не про текучку — и при этом ничего не спрятано с концами.
   if(rest.length){
     h+='<div class="cal-rest-fold" onclick="toggleDayTasks()">Дела дня · '+rest.length
       +'<span>'+(_showDayTasks?'скрыть':'показать')+'</span></div>';
-    if(_showDayTasks)rest.forEach(function(t){
-      h+='<div class="cal-task dim"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
-        +'<span class="cal-task-text'+(t.done?' done':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</span>'
-        +'<button class="z-btn" title="Показывать в календаре" onclick="taskToCal(\''+t.id+'\')">📅</button></div>';
-    });
+    if(_showDayTasks)rest.forEach(function(t){h+=calTaskRow(t,true)});
   }
   box.innerHTML=h;
 }
