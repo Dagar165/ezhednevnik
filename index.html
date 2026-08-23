@@ -636,6 +636,18 @@ body.typing .float-inbox-btn { display: none; }
 [data-theme="dark"] .task-row.voice-work .task-text { color: #d8bf72; }
 [data-theme="dark"] .task-row.voice-dead .task-text { color: #97948c; }
 [data-theme="dark"] .task-text.done { color: #6b6862; }
+/* Метка «в календаре» у дела и свёрнутая текучка внутри дня календаря. */
+.cal-chip { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 7px;
+            background: #eef3fb; color: #4a7bb5; margin-left: 4px; }
+.cal-rest-fold { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 10px;
+                 padding: 0 2px; font-size: 13px; color: #85827c; cursor: pointer;
+                 border-top: 0.5px solid #eeebe5; }
+.cal-rest-fold span { margin-left: auto; font-size: 12.5px; color: #a3a09b; }
+.cal-task.dim .cal-task-text { color: #8b8880; }
+[data-theme="dark"] .cal-chip { background: #1b2a3d; color: #9cc4f0; }
+[data-theme="dark"] .cal-rest-fold { color: #97948c; border-top-color: #34342f; }
+[data-theme="dark"] .cal-task.dim .cal-task-text { color: #97948c; }
+
 /* Главная задача дня — обычная строка дела внутри своей рамки. */
 .main-task-wrap { margin: 0 -6px -4px; }
 .main-task-wrap .task-row { border-bottom: none; }
@@ -1205,6 +1217,41 @@ function lateTasks(){
    Стало: главная задача — обычное дело со звездой (t.main). Все действия над
    ней общие: правка текста, перенос, отмена, удаление, архив, слияние между
    устройствами. Звезда одна на день: назначая новую, снимаем прежнюю. */
+/* Календарь и дела дня разведены (правка 23.08.2026).
+   Было: календарь показывал ВСЕ дела с датой. Поставил пять дел на четверг —
+   в календаре пять строк, клетка в цифрах, а долгосрочного плана за этой
+   текучкой не видно. Убрать дело из календаря можно было только сняв с него
+   день, то есть выкинув из планов вообще.
+   Стало: в календарь попадает то, что для календаря и предназначено —
+   свободные заметки дня и дела с пометкой 📅. Пометка ставится сама там, где
+   это очевидно (дело заведено прямо в календаре; голос услышал дату дальше
+   завтрашнего — «15-го концерт»), и снимается-ставится руками одной кнопкой.
+   Остальные дела дня из календаря не исчезли: они в свёрнутой строке «Дела
+   дня», рядом, но не мешают. */
+function calTasks(dk){return S.tasks.filter(function(t){return t.day===dk&&t.cal})}
+function calOpenCount(dk){return calTasks(dk).filter(function(t){return!t.done}).length}
+function dayOnlyTasks(dk){return S.tasks.filter(function(t){return t.day===dk&&!t.cal})}
+function taskToCal(id){
+  var t=taskById(id);if(!t)return;
+  if(!t.day){t.day=todayStr();t.box=0}
+  t.cal=1;fixHome(t);ezTouch(t);save();rerenderAll();
+  toast('📅 В календаре · '+dayWord(t.day));
+}
+function taskFromCal(id){
+  var t=taskById(id);if(!t)return;
+  // Не снимаем день: дело остаётся на своём дне, просто перестаёт быть
+  // событием календаря. Раньше единственный способ убрать строку из календаря
+  // отбирал у дела день целиком — и человек справедливо считал это удалением.
+  delete t.cal;ezTouch(t);save();rerenderAll();
+  toast('Убрано из календаря — дело осталось на '+dayWord(t.day));
+}
+/* «Далёкая» дата — всё, что дальше завтрашнего дня. */
+function isFarDate(dk){
+  if(!dk)return false;
+  var t=new Date();t.setDate(t.getDate()+1);
+  return dk>dateKey(t);
+}
+window.isFarDate=isFarDate;
 function mainOf(dk){var r=null;S.tasks.forEach(function(t){if(!r&&t.day===dk&&t.main)r=t});return r}
 function taskSetMain(id){
   var t=taskById(id);if(!t)return;
@@ -1321,6 +1368,7 @@ function taskRowHtml(t,where){
   var zn=zoneById(t.zone),chips='';
   if(where!=='zone'&&zn)chips+='<span class="zone-badge">'+esc(zn.name)+'</span>';
   if(t.day&&(where!=='day'||late))chips+='<span class="day-chip'+(late?' late':'')+'">'+(late?'⏳ ':'📅 ')+dayWord(t.day)+'</span>';
+  if(t.cal)chips+='<span class="cal-chip" title="Видно в календаре">📅 в календаре</span>';
   if(where==='box')chips+=stampHtml(t);
   var why=t.vdetail?'<div class="inbox-why">'+esc(t.vdetail)+'</div>':'';
   var h='<div class="task-row'+(open?' row-open':'')+(t.voice?' voice-'+(t.vstate||'work'):'')+'" data-id="'+t.id+'">'
@@ -1360,6 +1408,8 @@ function taskActionsHtml(t){
     +(t.done?''
       :(t.main?'<button class="row-act" onclick="taskUnsetMain(\''+t.id+'\')">☆ Снять звезду</button>'
               :'<button class="row-act" onclick="taskSetMain(\''+t.id+'\')">⭐ Сделать главной'+(t.day?'':' на сегодня')+'</button>'))
+    +(t.cal?'<button class="row-act" onclick="taskFromCal(\''+t.id+'\')">📅 Убрать из календаря — день останется</button>'
+           :'<button class="row-act" onclick="taskToCal(\''+t.id+'\')">📅 Показывать в календаре</button>')
     +'<select class="row-act select" onchange="taskSetDay(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+days+'</select>'
     +'<select class="row-act select" onchange="taskSetZone(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+zopts+'</select>';
   if(t.voice&&window.voiceHasAudio&&window.voiceHasAudio(t.id))
@@ -1638,7 +1688,7 @@ var calYear,calMonth,calSelectedDate;
 function calDigest(dk){
   var out=[],note=S.calendar[dk];
   if(note)out.push(note);
-  dayTasks(dk).filter(function(t){return!t.done}).forEach(function(t){out.push('• '+t.text)});
+  calTasks(dk).filter(function(t){return!t.done}).forEach(function(t){out.push('• '+t.text)});
   return out.join(String.fromCharCode(10));
 }
 function renderCalNotifs(){
@@ -1646,7 +1696,7 @@ function renderCalNotifs(){
   [['cal-today-pill','pop-today-text','pill-today-label','🔴 Сегодня',ds],
    ['cal-tomorrow-pill','pop-tomorrow-text','pill-tomorrow-label','🔔 Завтра',ts]].forEach(function(x){
     var pill=document.getElementById(x[0]);if(!pill)return;
-    var dk=x[4],txt=calDigest(dk),note=S.calendar[dk],n=dayOpenCount(dk);
+    var dk=x[4],txt=calDigest(dk),note=S.calendar[dk],n=calOpenCount(dk);
     if(!txt){pill.classList.remove('show');return}
     pill.classList.add('show');
     document.getElementById(x[1]).textContent=txt;
@@ -1662,7 +1712,7 @@ function openCalendar(){var d=new Date();calYear=d.getFullYear();calMonth=d.getM
 function closeCalendar(){document.getElementById('cal-overlay').classList.remove('open')}
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--}calSelectedDate=null;renderCal()}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++}calSelectedDate=null;renderCal()}
-function renderCal(){document.getElementById('cal-month-label').textContent=MONTHS_RU[calMonth]+' '+calYear;var f=new Date(calYear,calMonth,1),sd=(f.getDay()+6)%7,dm=new Date(calYear,calMonth+1,0).getDate(),ds=todayStr();var h='';['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d){h+='<div class="cal-dow">'+d+'</div>'});for(var i=0;i<sd;i++)h+='<div class="cal-day empty"></div>';for(var d=1;d<=dm;d++){var dk=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),it=dk===ds,n=S.calendar[dk]||'';var cnt=dayOpenCount(dk);
+function renderCal(){document.getElementById('cal-month-label').textContent=MONTHS_RU[calMonth]+' '+calYear;var f=new Date(calYear,calMonth,1),sd=(f.getDay()+6)%7,dm=new Date(calYear,calMonth+1,0).getDate(),ds=todayStr();var h='';['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d){h+='<div class="cal-dow">'+d+'</div>'});for(var i=0;i<sd;i++)h+='<div class="cal-day empty"></div>';for(var d=1;d<=dm;d++){var dk=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),it=dk===ds,n=S.calendar[dk]||'';var cnt=calOpenCount(dk);
 h+='<div class="cal-day'+(it?' today':'')+(n?' has-note':'')+(cnt?' has-tasks':'')+'" onclick="calSelectDay(\''+dk+'\')"><div class="cal-day-num">'+d+(cnt?'<span class="cal-day-cnt">'+cnt+'</span>':'')+'</div>'+(n?'<div class="cal-day-note">'+esc(n)+'</div>':'')+'</div>'}document.getElementById('cal-grid').innerHTML=h;document.getElementById('cal-editor').style.display=calSelectedDate?'block':'none'}
 /* Клетка календаря открывает день целиком: сначала дела на него (в том числе
    наговорённые — «15-го концерт» теперь видно именно здесь), потом свободная
@@ -1677,24 +1727,38 @@ function calSelectDay(dk){
   document.getElementById('cal-del-btn').style.display=S.calendar[dk]?'inline-block':'none';
   renderCalDay();
 }
+var _showDayTasks=false;
+function toggleDayTasks(){_showDayTasks=!_showDayTasks;renderCalDay()}
 function renderCalDay(){
   var box=document.getElementById('cal-day-tasks');if(!box)return;
-  var dk=calSelectedDate,ts=dayTasks(dk),h='';
-  if(!ts.length)h+='<div class="set-empty">Дел на этот день нет</div>';
-  ts.forEach(function(t){
+  var dk=calSelectedDate,ev=calTasks(dk),rest=dayOnlyTasks(dk),h='';
+  if(!ev.length)h+='<div class="set-empty">В календаре на этот день ничего нет</div>';
+  ev.forEach(function(t){
     var zn=zoneById(t.zone);
     h+='<div class="cal-task"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
       +'<span class="cal-task-text'+(t.done?' done':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</span>'
       +(zn?'<span class="week-task-zone">'+esc(zn.name)+'</span>':'')
-      +'<button class="z-btn del-t" title="Снять с этого дня" onclick="taskSetDay(\''+t.id+'\',null)">✕</button></div>';
+      +'<button class="z-btn del-t" title="Убрать из календаря — дело останется на этом дне" onclick="taskFromCal(\''+t.id+'\')">✕</button></div>';
   });
-  h+='<div class="set-row" style="margin-top:8px"><input class="add-input" id="cal-task-input" placeholder="+ дело на этот день" onkeydown="if(event.key===\'Enter\')calAddTask()"><button class="add-btn" onclick="calAddTask()">+</button></div>';
+  h+='<div class="set-row" style="margin-top:8px"><input class="add-input" id="cal-task-input" placeholder="+ событие на этот день" onkeydown="if(event.key===\'Enter\')calAddTask()"><button class="add-btn" onclick="calAddTask()">+</button></div>';
+  // Обычные дела этого дня рядом, но свёрнуты: календарь остаётся про планы,
+  // а не про текучку — и при этом ничего не спрятано с концами.
+  if(rest.length){
+    h+='<div class="cal-rest-fold" onclick="toggleDayTasks()">Дела дня · '+rest.length
+      +'<span>'+(_showDayTasks?'скрыть':'показать')+'</span></div>';
+    if(_showDayTasks)rest.forEach(function(t){
+      h+='<div class="cal-task dim"><div class="small-check'+(t.done?' done':'')+'" onclick="taskToggle(\''+t.id+'\')"></div>'
+        +'<span class="cal-task-text'+(t.done?' done':'')+'">'+(t.main?'⭐ ':'')+esc(t.text)+'</span>'
+        +'<button class="z-btn" title="Показывать в календаре" onclick="taskToCal(\''+t.id+'\')">📅</button></div>';
+    });
+  }
   box.innerHTML=h;
 }
 function calAddTask(){
   var i=document.getElementById('cal-task-input'),t=(i.value||'').trim();if(!t)return;
-  addTask({text:t,day:calSelectedDate});
-  i.value='';save();rerenderAll();toast('→ '+dayWord(calSelectedDate));
+  // Заведено прямо в календаре — значит для календаря.
+  addTask({text:t,day:calSelectedDate,cal:1});
+  i.value='';save();rerenderAll();toast('📅 → '+dayWord(calSelectedDate));
 }
 function calSaveNote(){var t=document.getElementById('cal-textarea').value.trim();if(t)S.calendar[calSelectedDate]=t;else{ezTomb('cal:'+calSelectedDate);delete S.calendar[calSelectedDate]}save();renderCal();renderCalNotifs();toast('Сохранено')}
 function calDeleteNote(){ezTomb('cal:'+calSelectedDate);delete S.calendar[calSelectedDate];save();renderCal();renderCalNotifs();toast('Удалено')}
@@ -2432,6 +2496,9 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
         it2.zone = res.zone || null;
         it2.day = res.date || null;
         if (it2.day) it2.box = 0;          // услышали день — дело разобрано
+        // Дата дальше завтрашнего дня — это про планы, такому место в календаре.
+        // «Сегодня в 13:00 массаж» — обычное дело дня, календарь им не засоряем.
+        if (it2.day && window.isFarDate && window.isFarDate(it2.day)) it2.cal = 1;
         it2.raw = res.transcript || '';
         it2._u = Date.now();
         fixHome(it2);
@@ -2440,7 +2507,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
         // Строку удалили руками, пока шла расшифровка - результат всё равно не теряем.
         addTask({ text: text, zone: res.zone || null, created: todayStr(),
                   createdAt: r.ts || Date.now(), day: res.date || null,
-                  box: res.date ? 0 : 1, raw: res.transcript || '' });
+                  box: res.date ? 0 : 1, raw: res.transcript || '',
+                  cal: (res.date && window.isFarDate && window.isFarDate(res.date)) ? 1 : undefined });
       }
       redraw();
       var z = zoneName(res.zone);
