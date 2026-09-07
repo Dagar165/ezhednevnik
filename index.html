@@ -636,6 +636,40 @@ body.typing .float-inbox-btn { display: none; }
 [data-theme="dark"] .task-row.voice-work .task-text { color: #d8bf72; }
 [data-theme="dark"] .task-row.voice-dead .task-text { color: #97948c; }
 [data-theme="dark"] .task-text.done { color: #6b6862; }
+/* Сферы кнопками — разложить входящее одним нажатием. */
+.zone-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 2px; }
+.zone-chip { min-height: 44px; padding: 4px 6px; font-size: 12.5px; font-family: inherit; line-height: 1.25;
+             color: #4a4843; background: #fff; border: 1px solid #e6e2da; border-radius: 10px; cursor: pointer; }
+.zone-chip.on { font-weight: 600; }
+.zone-chip:active { transform: scale(0.97); }
+@media (max-width: 380px) { .zone-chips { grid-template-columns: repeat(2, 1fr); } }
+[data-theme="dark"] .zone-chip { color: #d8d5cd; background: #2a2a26; }
+
+/* Экран «Разбор»: цифры сверху, дальше — то, что нужно разгрести. */
+.plan-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.plan-num { background: #fff; border: 0.5px solid #e8e6e2; border-radius: 12px; padding: 10px 6px; text-align: center; }
+.plan-num b { display: block; font-size: 20px; font-weight: 700; line-height: 1.2; }
+.plan-num span { font-size: 11px; color: #85827c; }
+.plan-num.warn b { color: #b8860b; }
+.plan-num.bad b { color: #c0453f; }
+.plan-block { background: #fff; border: 0.5px solid #e8e6e2; border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
+.plan-block-head { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #85827c; margin-bottom: 6px; }
+.plan-ok { font-size: 13px; color: #85827c; padding: 6px 0 4px; }
+.plan-mass { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.plan-mass .row-act { flex: 1 1 auto; min-width: 140px; }
+.plan-week { display: flex; flex-direction: column; }
+.plan-day { display: flex; align-items: center; gap: 10px; min-height: 44px; border-top: 0.5px solid #f0eeea; cursor: pointer; }
+.plan-day:first-child { border-top: none; }
+.plan-day-name { font-size: 14px; font-weight: 500; }
+.plan-day-cnt { margin-left: auto; font-size: 13px; color: #85827c; }
+.plan-day-busy { font-size: 11px; color: #a3a09b; flex-basis: 100%; margin: -4px 0 6px; }
+.plan-day.heavy .plan-day-cnt { color: #c0453f; font-weight: 600; }
+[data-theme="dark"] .plan-num, [data-theme="dark"] .plan-block { background: #232320; border-color: #34342f; }
+[data-theme="dark"] .plan-num span, [data-theme="dark"] .plan-block-head,
+[data-theme="dark"] .plan-ok, [data-theme="dark"] .plan-day-cnt { color: #97948c; }
+[data-theme="dark"] .plan-day { border-top-color: #34342f; }
+[data-theme="dark"] .plan-day-busy { color: #85827c; }
+
 /* Правка записи прямо в календаре. */
 .cal-task.editing { display: block; padding: 8px 0 4px; }
 .cal-task.editing .task-edit-area { width: 100%; min-height: 84px; }
@@ -703,11 +737,11 @@ body.typing .float-inbox-btn { display: none; }
 <button class="menu-item" onclick="closeMenu();openSettings()">⚙ Сферы и расписание<span>переименовать, добавить, убрать</span></button>
 <button class="menu-item danger" onclick="closeMenu();newDay()">↺ Новый день<span>выполненное уедет в архив — обратно не вернуть</span></button>
 <button class="menu-item close" onclick="closeMenu()">Закрыть</button></div></div>
-<div class="tabs-bar"><button class="tab-btn active" onclick="switchTab('today-tab')">Сегодня</button><button class="tab-btn" onclick="switchTab('week-tab')">Неделя</button><button class="tab-btn" onclick="switchTab('inbox-tab')" id="inbox-tab-btn">Входящие</button><button class="tab-btn" onclick="switchTab('plan-tab')">📋 Планирование</button></div>
+<div class="tabs-bar"><button class="tab-btn active" onclick="switchTab('today-tab')">Сегодня</button><button class="tab-btn" onclick="switchTab('week-tab')">Неделя</button><button class="tab-btn" onclick="switchTab('inbox-tab')" id="inbox-tab-btn">Входящие</button><button class="tab-btn" onclick="switchTab('plan-tab')" id="plan-tab-btn">🧹 Разбор</button></div>
 <div class="tab-content active" id="today-tab"><div id="review-banner" class="review-banner">📋 Воскресенье — обнови зоны и спланируй неделю.</div><div class="main-task-section" id="main-task-section"></div><div class="top-row"><div class="top-card today-card"><div class="top-card-header"><span class="top-card-title">Задачи на сегодня</span><span class="today-count" id="today-count"></span></div><div class="top-card-body" id="today-tasks"></div></div><div class="top-card remind-card"><div class="top-card-header"><span class="top-card-title">Ежедневные</span></div><div class="top-card-body" id="remind-tasks"></div><div class="add-remind-row"><input class="add-input" id="inp-remind" placeholder="напоминание..." onkeydown="if(event.key==='Enter')addReminder()"><button class="add-btn" onclick="addReminder()">+</button></div></div></div><div class="zones-grid" id="zones-grid"></div><div class="hint">Нажми на сферу — раскроется. Нажми на задачу — появятся кнопки.</div></div>
 <div class="tab-content" id="week-tab"><div id="week-container"></div></div>
 <div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Наговори 🎤 или запиши, что прилетело. Назовёшь день вслух («сегодня», «в среду», «15-го») — дело само встанет на этот день и появится в «Сегодня», в «Неделе» и в календаре. Без дня оно ждёт здесь: нажми на строку и выбери день.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn mic-btn" id="mic-btn" onclick="micToggle()" title="Записать голосом">🎤</button><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
-<div class="tab-content" id="plan-tab"><div class="plan-header"><div class="plan-title">Утреннее планирование</div><div class="plan-subtitle">Понедельник — штаб. 20 минут, чтобы разложить неделю.</div></div><div class="plan-step"><div class="plan-step-title">1. Разбери входящие</div><div class="plan-step-desc">Каждую задачу — либо раскидай по дням, либо удали. Цель: входящие = 0.</div><button class="plan-step-btn" onclick="switchTab('inbox-tab')">Входящие →</button></div><div class="plan-step"><div class="plan-step-title">2. Обнови зоны</div><div class="plan-step-desc">Пройдись по зонам. Добавь новое, удали неактуальное.</div><button class="plan-step-btn" onclick="switchTab('today-tab')">Сегодня →</button></div><div class="plan-step"><div class="plan-step-title">3. Раскидай по неделе</div><div class="plan-step-desc">Смотри свободные окна (зелёные). Не больше 2-3 задач на тяжёлые дни.</div><button class="plan-step-btn" onclick="switchTab('week-tab')">Неделя →</button></div><div class="plan-step"><div class="plan-step-title">4. Главная задача дня</div><div class="plan-step-desc">Выбери ОДНУ задачу на сегодня — самую важную. Она будет вверху «Сегодня».</div></div><div class="plan-reminder"><p><strong>Вт</strong> и <strong>Сб</strong> — тяжёлые. Не грузи сверх расписания.</p><p><strong>Пн</strong> и <strong>Пт</strong> — дни для проектов (школа, Келек, волонтёры).</p><p><strong>Чт утро</strong> — 3-4 часа глубокой работы до гимназии.</p><p><strong>Вс</strong> — не трогай. День с женой.</p></div></div>
+<div class="tab-content" id="plan-tab"><div id="plan-body"></div></div>
 <button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
 <div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-family:monospace;padding:10px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
@@ -1135,7 +1169,7 @@ function switchTab(id){document.querySelectorAll('.tab-content').forEach(functio
    вылезала тихая гадость: положил дело на сегодня из «Входящих», перешёл в
    «Сегодня» — а его там нет, потому что карточку дня никто не обновил. Ждать
    от каждой правки, что она вспомнит про все три вкладки, — так и живут баги. */
-if(id==='today-tab')render();if(id==='week-tab')renderWeek();if(id==='inbox-tab')renderInbox()}
+if(id==='today-tab')render();if(id==='week-tab')renderWeek();if(id==='inbox-tab')renderInbox();if(id==='plan-tab')renderPlan()}
 
 // MAIN TASK
 function renderMainTask(){
@@ -1178,6 +1212,7 @@ function rerenderActive(){
   var a=document.querySelector('.tab-content.active');if(!a)return;
   if(a.id==='inbox-tab')renderInbox();
   if(a.id==='week-tab')renderWeek();
+  if(a.id==='plan-tab')renderPlan();
 }
 function toggleRow(id){_openRow=(_openRow===id?null:id);rerenderActive()}
 /* Раскидывать задачу можно на две недели вперёд, а не только до воскресенья:
@@ -1314,6 +1349,8 @@ function rerenderAll(){
   var a=document.querySelector('.tab-content.active');
   try{if(a&&a.id==='inbox-tab')renderInbox()}catch(e){}
   try{if(a&&a.id==='week-tab')renderWeek()}catch(e){}
+  try{if(a&&a.id==='plan-tab')renderPlan()}catch(e){}
+  try{renderPlanBadge()}catch(e){}
   try{if(document.getElementById('cal-overlay').classList.contains('open')){renderCal();renderCalDay()}}catch(e){}
 }
 function rerenderActive(){rerenderAll()}
@@ -1431,11 +1468,21 @@ function taskActionsHtml(t){
   var days='<option value="" disabled selected>Поставить на день…</option>';
   planDates(14).forEach(function(d){var k=dateKey(d);days+='<option value="'+k+'"'+(k===t.day?' selected':'')+'>'+planLabel(d)+'</option>'});
 
-  var zopts='<option value="" disabled selected>Сфера…</option>';
-  ZD().forEach(function(z){zopts+='<option value="'+z.id+'"'+(z.id===t.zone?' selected':'')+'>'+esc(z.name)+'</option>'});
-  if(t.zone)zopts+='<option value="none">— без сферы</option>';
+  /* Сферы — рядом кнопками, а не выпадающим списком. Разбор входящих это ровно
+     одно движение: «это в ДДТ, это в Гимназию, это в Личное». Через список это
+     три касания на каждую запись, и разбор откладывается «на потом». Нажатие по
+     уже выбранной сфере снимает её. */
+  var zchips='<div class="zone-chips">';
+  ZD().forEach(function(z){
+    var on=(z.id===t.zone);
+    zchips+='<button class="zone-chip'+(on?' on':'')+'" style="border-color:'+z.color+'55'+(on?';background:'+z.color+'22':'')+'" '
+      +'onclick="taskSetZone(\''+t.id+'\',\''+(on?'':z.id)+'\'||null)">'+esc(z.name)+'</button>';
+  });
+  zchips+='</div>';
+  var tmd=new Date();tmd.setDate(tmd.getDate()+1);var TOM=dateKey(tmd);
   var h='<div class="row-actions">'
     +((t.day!==todayStr()&&!t.done)?'<button class="row-act primary" onclick="taskSetDay(\''+t.id+'\',todayStr())">→ На сегодня</button>':'')
+    +((t.day!==TOM&&!t.done)?'<button class="row-act" onclick="taskSetDay(\''+t.id+'\',\''+TOM+'\')">→ На завтра</button>':'')
     +(t.day?('<button class="row-act" onclick="taskSetDay(\''+t.id+'\',null)">↩ Убрать с дня'
              +(zoneById(t.zone)?(' — вернётся в «'+esc((zoneById(t.zone)||{}).name)+'»'):' — уйдёт во «Входящие»')+'</button>'):'')
     +'<button class="row-act" onclick="taskEdit(\''+t.id+'\')">✎ Изменить текст</button>'
@@ -1445,7 +1492,7 @@ function taskActionsHtml(t){
     +(t.cal?'<button class="row-act" onclick="taskFromCal(\''+t.id+'\')">📅 Убрать из календаря — день останется</button>'
            :'<button class="row-act" onclick="taskToCal(\''+t.id+'\')">📅 Показывать в календаре</button>')
     +'<select class="row-act select" onchange="taskSetDay(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+days+'</select>'
-    +'<select class="row-act select" onchange="taskSetZone(\''+t.id+'\',this.value===\'none\'?null:this.value)">'+zopts+'</select>';
+    +zchips;
   if(t.voice&&window.voiceHasAudio&&window.voiceHasAudio(t.id))
     h+='<button class="row-act" onclick="voicePlay(\''+t.id+'\')">'+(window.voicePlayingId===t.id?'⏸ Пауза':'▶ Послушать')+'</button>';
   if(t.voice)h+='<button class="row-act" onclick="voiceRetry(\''+t.id+'\')">↻ Расшифровать ещё раз</button>';
@@ -1494,7 +1541,7 @@ var h3='';(S.zoneOrder||[]).forEach(function(zi){
     +'<div class="zone-cnt">'+(cnt||'')+'</div>'
     +'<span class="zone-caret">'+(open?'⌃':'⌄')+'</span></div>'+body+'</div>';
 });
-document.getElementById('zones-grid').innerHTML=h3;renderInboxBadge();renderCalNotifs();initSortables()}
+document.getElementById('zones-grid').innerHTML=h3;renderInboxBadge();renderPlanBadge();renderCalNotifs();initSortables()}
 
 // WEEK
 function getWeekDates(off){var n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff+7*(off||0));var r=[];for(var i=0;i<7;i++){var x=new Date(m);x.setDate(m.getDate()+i);r.push(x)}return r}
@@ -1565,6 +1612,75 @@ function renderInbox(){
     all.forEach(function(t){h+=taskRowHtml(t,'box')});
   }
   document.getElementById('inbox-list').innerHTML=h;
+}
+/* Экран «Разбор» (23.08.2026).
+   Раньше на этом месте была вкладка «Планирование» с текстом, зашитым в код:
+   «вторник и суббота тяжёлые», «воскресенье — день с женой», «Пн и Пт — дни для
+   проектов». Текст не правился нигде и устаревал молча, а кнопки просто вели на
+   другие вкладки. Пользы — ноль.
+   Теперь здесь то, ради чего такой экран нужен: сколько всего накопилось, что
+   не разобрано, что просрочено, и как разгрести это, не бегая по вкладкам. */
+function planNumbers(){
+  var open=S.tasks.filter(function(t){return!t.done}).length;
+  return {open:open,box:boxTasks().length,late:lateTasks().length,
+          today:dayTasks(todayStr()).filter(function(t){return!t.done}).length};
+}
+function renderPlanBadge(){
+  var n=planNumbers(),c=n.box+n.late,el=document.getElementById('plan-tab-btn');
+  if(el)el.innerHTML='🧹 Разбор'+(c?'<span class="tab-badge">'+c+'</span>':'');
+}
+/* Перенести всё просроченное разом. По одному такие вещи не разбирают: их
+   двадцать, и человек просто перестаёт открывать этот блок. */
+function lateMoveAll(dk){
+  var l=lateTasks();if(!l.length)return;
+  var word=dk?dayWord(dk):'во «Входящие»';
+  if(!confirm('Перенести '+plural(l.length,'дело','дела','дел')+' на «'+word+'»?'))return;
+  l.forEach(function(t){t.day=dk||null;if(dk)t.box=0;if(!dk)delete t.main;fixHome(t);ezTouch(t)});
+  save();rerenderAll();toast(l.length+' → '+word);
+}
+function renderPlan(){
+  var el=document.getElementById('plan-body');if(!el)return;
+  var n=planNumbers(),h='';
+  var tm=new Date();tm.setDate(tm.getDate()+1);var TOM=dateKey(tm);
+
+  h+='<div class="plan-nums">'
+    +'<div class="plan-num"><b>'+n.open+'</b><span>всего дел</span></div>'
+    +'<div class="plan-num'+(n.box?' warn':'')+'"><b>'+n.box+'</b><span>не разобрано</span></div>'
+    +'<div class="plan-num'+(n.late?' bad':'')+'"><b>'+n.late+'</b><span>просрочено</span></div>'
+    +'<div class="plan-num"><b>'+n.today+'</b><span>на сегодня</span></div></div>';
+
+  // 1. Неразобранное — прямо здесь, с полным набором действий.
+  h+='<div class="plan-block"><div class="plan-block-head">Разобрать входящие'
+    +(n.box?' · '+n.box:'')+'</div>';
+  if(!n.box)h+='<div class="plan-ok">Пусто. Так держать.</div>';
+  else boxTasks().forEach(function(t){h+=taskRowHtml(t,'box')});
+  h+='</div>';
+
+  // 2. Просроченное — с переносом пачкой.
+  h+='<div class="plan-block"><div class="plan-block-head">Просрочено'+(n.late?' · '+n.late:'')+'</div>';
+  if(!n.late)h+='<div class="plan-ok">Ничего не висит.</div>';
+  else{
+    h+='<div class="plan-mass">'
+      +'<button class="row-act primary" onclick="lateMoveAll(todayStr())">→ Все на сегодня</button>'
+      +'<button class="row-act" onclick="lateMoveAll(\''+TOM+'\')">→ Все на завтра</button>'
+      +'<button class="row-act" onclick="lateMoveAll(null)">↩ Все с дней снять</button></div>';
+    lateTasks().forEach(function(t){h+=taskRowHtml(t,'box')});
+  }
+  h+='</div>';
+
+  // 3. Нагрузка недели: видно, куда уже навалено, а где пусто.
+  h+='<div class="plan-block"><div class="plan-block-head">Неделя впереди</div><div class="plan-week">';
+  for(var i=0;i<7;i++){
+    var d=new Date();d.setDate(d.getDate()+i);var dk=dateKey(d),c=dayOpenCount(dk);
+    var busy=((SCH().fixed||{})[d.getDay()]||[]).length;
+    h+='<div class="plan-day'+(c>=5?' heavy':'')+'" onclick="openCalendar();calSelectDay(\''+dk+'\')">'
+      +'<span class="plan-day-name">'+(i===0?'Сегодня':(i===1?'Завтра':dayWord(dk)))+'</span>'
+      +'<span class="plan-day-cnt">'+(c?plural(c,'дело','дела','дел'):'—')+'</span>'
+      +(busy?'<span class="plan-day-busy">занято по расписанию: '+busy+'</span>':'')+'</div>';
+  }
+  h+='</div></div>';
+
+  el.innerHTML=h;
 }
 function renderInboxBadge(){
   var n=boxTasks().length;
