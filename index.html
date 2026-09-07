@@ -810,16 +810,27 @@ function ezMergeList(la,lb,ta,tb,tombs){
   pairs.forEach(function(p){
     p[0].forEach(function(it){
       if(!it||!it.id)return;
-      var st=it._u||p[1]||0;
-      if(!best[it.id]){best[it.id]={item:it,stamp:st};order.push(it.id)}
-      else if(st>best[it.id].stamp)best[it.id]={item:it,stamp:st};
+      // Две разные величины, и путать их нельзя:
+      //   stamp — чем сравнивать ДВЕ ВЕРСИИ одной записи. У записи без своего
+      //           штампа берём время сохранения копии, иначе она всегда проиграет.
+      //   own   — когда запись правили НА САМОМ ДЕЛЕ. Только это можно сравнивать
+      //           с надгробием. Раньше сравнивали stamp — и запись без штампа
+      //           «омолаживалась» до времени сохранения, оказывалась свежее
+      //           надгробия и воскресала после каждого захода со второго
+      //           устройства. Ровно так в «Сегодня» и всплывало старьё.
+      var st=it._u||p[1]||0,own=it._u||0;
+      if(!best[it.id]){best[it.id]={item:it,stamp:st,own:own};order.push(it.id)}
+      else{
+        if(st>best[it.id].stamp){best[it.id].item=it;best[it.id].stamp=st}
+        if(own>best[it.id].own)best[it.id].own=own;
+      }
     });
   });
   var res=[];
   var bothHave=la.length&&lb.length;
   order.forEach(function(id){
     var e=best[id],t=(tombs&&tombs[id])||0;
-    if(t>=e.stamp)return;                                   // удалили позже, чем правили
+    if(t&&t>=e.own)return;                                  // удалили позже, чем правили
     // Примеры задач, которыми ежедневник встречает нового человека («Не курить»,
     // «Первая продажа?»), не должны подмешиваться в настоящий список, если на
     // втором устройстве там уже что-то есть.
@@ -845,12 +856,14 @@ function ezMergeMapOfValues(ma,mb,ta,tb,tombs,prefix){
     var A=ma[k],B=mb[k];
     var hasA=A!==undefined&&A!==null,hasB=B!==undefined&&B!==null;
     var sa=(A&&A._u)||ta||0,sb=(B&&B._u)||tb||0;
-    var chosen,stamp;
-    if(hasA&&hasB){if(sb>sa){chosen=B;stamp=sb}else{chosen=A;stamp=sa}}
-    else if(hasA){chosen=A;stamp=sa}
-    else if(hasB){chosen=B;stamp=sb}
+    var own=Math.max((A&&A._u)||0,(B&&B._u)||0);            // когда правили на самом деле
+    var chosen;
+    if(hasA&&hasB){chosen=(sb>sa)?B:A}
+    else if(hasA)chosen=A;
+    else if(hasB)chosen=B;
     else return;
-    if(((tombs&&tombs[prefix+k])||0)>=stamp)return;         // запись удалили позже
+    var tm=(tombs&&tombs[prefix+k])||0;
+    if(tm&&tm>=own)return;                                  // запись удалили позже
     out[k]=chosen;
   }
   for(k in ma)pick(k);
@@ -924,6 +937,10 @@ function migrateTasks(s){
              +Object.keys(s.zones||{}).reduce(function(n,z){return n+(((s.zones[z]||{}).tasks||[]).length)},0))>0;
   function take(o,extra){
     if(!o||!o.id||have[o.id])return null;
+    // Запись удалили — значит удалили. Раньше переезд её не спрашивал: дело
+    // приезжало со второго устройства в старом списке, в общем списке его уже
+    // не было, и оно заводилось заново — да ещё и сегодняшним днём.
+    if((s._tomb||{})[o.id])return null;
     var t={id:o.id,_u:o._u||0,text:o.text||'',zone:null,day:null,box:0,done:!!o.done,
            createdAt:o.createdAt||0,created:o.created||''};
     ['voice','vstate','vdetail','raw','_seed'].forEach(function(f){if(o[f]!==undefined)t[f]=o[f]});
@@ -938,13 +955,23 @@ function migrateTasks(s){
     (((s.zones||{})[zi]||{}).tasks||[]).forEach(function(x){take(x,{zone:zi})});
   });
   // «Сегодня» держало КОПИИ задач сферы со ссылкой sourceId. Оригинал уже
-  // переехал — копию не заводим, а просто ставим оригиналу сегодняшний день.
+  // переехал — копию не заводим, а просто ставим оригиналу день.
+  //
+  // Чей это «сегодня» — вот в чём был подвох. Список назывался «Сегодня», но
+  // копия могла пролежать на другом устройстве полгода. Переезд честно ставил
+  // ей СЕГОДНЯШНИЙ день, и дела из марта оказывались в задачах на сегодня.
+  // Теперь смотрим, какой день был у этой копии последним: если не сегодняшний,
+  // дело едет во «Входящие» — пусть человек решит сам, а не ежедневник за него.
+  var lastDay=s.date||null;
+  if(!lastDay&&s._updatedAt){try{lastDay=dateKey(new Date(s._updatedAt))}catch(e){}}
+  var todayIsFresh=!lastDay||lastDay>=todayStr();
+  var homeForToday=todayIsFresh?{day:todayStr(),box:0}:{day:null,box:1};
   (s.today||[]).forEach(function(x){
     if(x.sourceId){
       var src=null;s.tasks.forEach(function(t){if(t.id===x.sourceId)src=t});
-      if(src){src.day=todayStr();if(x.done)src.done=true;return}
+      if(src){if(todayIsFresh)src.day=todayStr();if(x.done)src.done=true;return}
     }
-    take(x,{zone:x.zoneId||null,day:todayStr()});
+    take(x,{zone:x.zoneId||null,day:homeForToday.day,box:homeForToday.box});
   });
   // Главные задачи дня — из отдельного списка в общий, со звездой. Ключ дня
   // даёт постоянный id: переезд можно повторять, и на двух устройствах выйдет
