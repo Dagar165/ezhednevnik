@@ -2040,10 +2040,24 @@ function ezCheckUpdate(){
         return (old?old.text():Promise.resolve('')).then(function(oldText){
           if(oldText===fresh)return 'та же версия';
           var opts={headers:{'content-type':'text/html; charset=utf-8'}};
-          return Promise.all([
-            c.put(location.origin+'/', new Response(fresh,opts)),
-            c.put(location.origin+'/index.html', new Response(fresh,opts))
-          ]).then(function(){
+          /* Класть свежую версию надо ТУДА ЖЕ, откуда её берёт сервис-воркер.
+             Раньше здесь стоял location.origin+'/index.html' — корень домена.
+             На Vercel приложение и правда лежит в корне, и всё сходилось. А на
+             GitHub Pages оно живёт в подпапке (…/ezhednevnik/), и свежая версия
+             ложилась мимо: рабочая копия в кэше оставалась старой навсегда.
+             Отсюда «Приехала новая версия» при каждом заходе, кнопка «Обновить»
+             ничего не меняла, и компьютер месяцами сидел на старом коде, пока
+             телефон обновлялся с первого раза. */
+          var dir=location.href.split('#')[0].split('?')[0].replace(/[^/]*$/,'');
+          var puts=[c.put(dir,new Response(fresh,opts)),
+                    c.put(dir+'index.html',new Response(fresh,opts))];
+          // Прибираем за старой ошибкой: копии, положенные в корень домена,
+          // не нужны, а место занимают и путают.
+          if(dir!==location.origin+'/'){
+            puts.push(c.delete(location.origin+'/').catch(function(){}));
+            puts.push(c.delete(location.origin+'/index.html').catch(function(){}));
+          }
+          return Promise.all(puts).then(function(){
             if(oldText){var b=document.getElementById('update-bar');if(b)b.classList.add('show')}
             return oldText?'приехала новая версия':'кэш заполнен';
           });
