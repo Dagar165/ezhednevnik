@@ -727,6 +727,7 @@ body.typing .float-inbox-btn { display: none; }
 [data-theme="dark"] .task-raw b { color: #b6b2a9; }
 [data-theme="dark"] .task-row.editing { background: #232320; }
 </style>
+<link rel="stylesheet" href="./pult.css">
 </head>
 <body>
 <div class="app-header"><div><div class="app-title">Ежедневник</div><div class="date-label" id="date-label"></div></div><div class="header-btns"><button class="hdr-btn" onclick="openCalendar()">📅</button><button class="hdr-btn" id="sync-btn" onclick="openSync()">☁</button><button class="hdr-btn" onclick="toggleMenu()" title="Ещё">⋯</button></div></div>
@@ -742,6 +743,7 @@ body.typing .float-inbox-btn { display: none; }
 <div class="tab-content" id="week-tab"><div id="week-container"></div></div>
 <div class="tab-content" id="inbox-tab"><div class="inbox-section"><div class="inbox-section-label">Быстрый ввод</div><div class="inbox-hint">Наговори 🎤 или запиши, что прилетело. Назовёшь день вслух («сегодня», «в среду», «15-го») — дело само встанет на этот день и появится в «Сегодня», в «Неделе» и в календаре. Без дня оно ждёт здесь: нажми на строку и выбери день.</div><div class="inbox-form"><input class="add-input" id="inbox-input" placeholder="Что нужно сделать..." onkeydown="if(event.key==='Enter')addInbox()"><select class="add-input" id="inbox-zone-select" style="flex:0 0 auto;min-width:110px"><option value="">Сфера?</option></select><button class="add-btn mic-btn" id="mic-btn" onclick="micToggle()" title="Записать голосом">🎤</button><button class="add-btn" onclick="addInbox()">+</button></div></div><div class="inbox-section"><div class="inbox-section-label">Входящие <span id="inbox-count"></span></div><div id="inbox-list"></div></div></div>
 <div class="tab-content" id="plan-tab"><div id="plan-body"></div></div>
+<div class="tab-content" id="pult-tab"><div id="pult-root"></div></div>
 <button class="float-inbox-btn" onclick="switchTab('inbox-tab');setTimeout(function(){document.getElementById('inbox-input').focus()},100)">⚡ Записать</button>
 <div class="modal-overlay arch-overlay" id="arch-overlay" onclick="if(event.target===this)closeArchive()"><div class="arch-modal"><div class="arch-modal-head"><span class="arch-modal-title">Архив</span><span class="arch-modal-count" id="arch-count"></span><button class="arch-close" onclick="closeArchive()">✕</button></div><div class="arch-scroll" id="archive-body"></div></div></div>
 <div class="modal-overlay backup-overlay" id="backup-overlay" onclick="if(event.target===this)closeBackup()"><div class="backup-modal"><div class="backup-head"><span class="backup-title">💾 Данные</span><button class="backup-close" onclick="closeBackup()">✕</button></div><div class="backup-body"><div id="backup-status-line" style="font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px"></div><p class="backup-desc">Скачай копию — брось в Telegram или на диск.</p><button class="backup-btn export" onclick="exportData()">⬇️ Скачать копию (JSON)</button><hr class="backup-divider"><p class="backup-desc" style="margin-top:8px"><strong>Вариант 1:</strong> из файла</p><button class="backup-btn import" onclick="document.getElementById('import-file').click()">📂 Выбрать JSON-файл</button><input type="file" id="import-file" accept=".json,application/json,text/plain" style="display:none" onchange="importData(event)"><p class="backup-desc" style="margin-top:12px"><strong>Вариант 2:</strong> вставить текст (если файл не берётся)</p><textarea id="paste-json" placeholder="Вставь сюда содержимое JSON-файла..." style="width:100%;min-height:80px;font-family:monospace;padding:10px;border-radius:8px;border:0.5px solid #e0deda;resize:vertical;box-sizing:border-box"></textarea><button class="backup-btn import" style="margin-top:6px" onclick="importFromText()">📥 Восстановить из текста</button><p class="backup-info" style="margin-top:10px">⚠️ Восстановление ЗАМЕНИТ все текущие данные. Если в ежедневнике что-то есть — сначала скачай копию, потом восстанавливай.</p></div></div></div>
@@ -803,10 +805,7 @@ function initState(){
   // экран не был пустым. Примеры помечены _seed — при первой синхронизации с
   // настоящим ежедневником они в него не подмешаются.
   var tasks=[];
-  ZONE_SEED.forEach(function(d){(d.init||[]).forEach(function(txt){
-    tasks.push({id:uid(),_u:Date.now(),text:txt,zone:d.id,day:null,box:0,done:false,createdAt:Date.now(),_seed:1});
-  })});
-  return{tasks:tasks,today:[],zones:{},zoneDefs:ZONE_SEED.map(function(d){return{id:d.id,name:d.name,color:d.color,_u:Date.now()}}),schedule:defaultSchedule(),zoneOrder:ZONE_SEED.map(function(d){return d.id}),reminders:DEFAULT_REMINDERS.map(function(t){return{id:uid(),_u:Date.now(),text:t,done:false}}),archive:[],date:todayStr(),calendar:{},inbox:[],weekTasks:{},mainTask:{}}}
+  return{tasks:tasks,today:[],zones:{},zoneDefs:ZONE_SEED.map(function(d){return{id:d.id,name:d.name,color:d.color,_u:Date.now()}}),schedule:defaultSchedule(),zoneOrder:ZONE_SEED.map(function(d){return d.id}),reminders:[],archive:[],date:todayStr(),calendar:{},inbox:[],weekTasks:{},mainTask:{}}}
 // === PERSISTENCE: localStorage + IndexedDB + URL hash ===
 /* --- MERGE-BEGIN — слияние двух ежедневников ------------------------------
    Зачем. Раньше в облако уезжал весь ежедневник одной строкой, и выигрывал тот,
@@ -914,6 +913,7 @@ function ezMergeStates(a,b,now){
   var newer=(tb>ta)?b:a,older=(tb>ta)?a:b;
   var out={},k;
   out.tasks=ezMergeList(a.tasks,b.tasks,ta,tb,tombs);       // главный список дел
+  out.pultLog=ezMergeList(a.pultLog,b.pultLog,ta,tb,{});
   out.today=ezMergeList(a.today,b.today,ta,tb,tombs);       // ниже — старые списки:
                                                             // на них может приехать
                                                             // что-то с ещё не
@@ -1263,7 +1263,7 @@ function addTask(o){
 }
 function removeTask(id){ezTomb(id);S.tasks=S.tasks.filter(function(t){return t.id!==id})}
 function archiveTask(t,status){
-  S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,zone:(zoneById(t.zone)||{}).name||'',
+  S.archive.unshift({id:uid(),_u:Date.now(),text:t.text,raw:t.raw||'',pult:t.pult?JSON.parse(JSON.stringify(t.pult)):undefined,day:t.day||null,zone:(zoneById(t.zone)||{}).name||'',
                      zoneId:t.zone||null,status:status||'done',archivedAt:todayLabel(),archivedDate:todayStr()});
   removeTask(t.id);
 }
@@ -1351,6 +1351,7 @@ function rerenderAll(){
   try{if(a&&a.id==='week-tab')renderWeek()}catch(e){}
   try{if(a&&a.id==='plan-tab')renderPlan()}catch(e){}
   try{renderPlanBadge()}catch(e){}
+  try{if(window.PultUI)PultUI.render()}catch(e){}
   try{if(document.getElementById('cal-overlay').classList.contains('open')){renderCal();renderCalDay()}}catch(e){}
 }
 function rerenderActive(){rerenderAll()}
@@ -1727,7 +1728,9 @@ function closeArchive(){document.getElementById('arch-overlay').classList.remove
 function restoreFromArchive(ai){
   var item=null;S.archive.forEach(function(a){if(a.id===ai)item=a});if(!item)return;
   var back,zi=(item.zoneId&&zoneById(item.zoneId))?item.zoneId:null;
-  addTask({text:item.text,zone:zi,day:null,box:zi?0:1});
+  var restored=item.pult?JSON.parse(JSON.stringify(item.pult)):null;
+  if(restored){restored.status='неизвестно';restored.confirmed=false;restored.needsReview=true;restored.reason='Возвращено из архива — уточните статус'}
+  addTask({text:item.text,raw:item.raw||'',pult:restored,zone:zi,day:null,box:zi?0:1});
   back=zi?('в сферу «'+((zoneById(zi)||{}).name||'')+'»'):'во «Входящие»';
   ezTomb(ai);S.archive=S.archive.filter(function(a){return a.id!==ai});
   save();renderArchive();render();try{renderInbox();renderInboxBadge()}catch(e){}
@@ -2355,9 +2358,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
      - вторая неудачная запись писалась в базу под ключом первой и затирала её;
      - повтор был один на всё приложение и только при загрузке страницы. */
 (function(){
-  // Адрес функции расшифровки. Внутри деплоя Vercel берётся сам; для github.io
-  // его надо задать один раз - приложение спросит и запомнит.
-  var VERCEL_API = '';
+  // Сохраняем существующую нейрорасшифровку и на приватном Site.
+  var VERCEL_API = 'https://ezhednevnik-927q.vercel.app/api/note';
 
   var MAX_SEC = 120, RATE = 16000, MAX_BODY = 4200000;
   var MAX_TRIES = 5;
@@ -2370,6 +2372,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   var urls = {}, player = null;
   function primeUrls(){
     vall().then(function(list){
+      list = list.filter(function(r){ return !mem[r.id]; });
+      Object.keys(mem).forEach(function(k){ list.push(mem[k]); });
       var seen = {}, changed = false;
       list.forEach(function(r){
         seen[r.id] = 1;
@@ -2427,8 +2431,8 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     var custom = '';
     try { custom = localStorage.getItem('ez-api-url') || ''; } catch(e){}
     if (custom) return custom;
-    if (location.hostname.indexOf('github.io') >= 0) return VERCEL_API;
-    return location.origin + '/api/note';
+    if (/\.vercel\.app$/i.test(location.hostname)) return location.origin + '/api/note';
+    return VERCEL_API;
   }
   function askApiUrl(){
     var v = prompt('Адрес расшифровки не задан.\n\nVercel -> проект -> Domains, скопируй адрес\nи допиши в конце /api/note\n\nНапример: https://ezhednevnik-927q.vercel.app/api/note', '');
@@ -2619,8 +2623,19 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   function accept(blob){
     if (!blob || !blob.size){ idle(); return; }
     paint('mic-busy', '…', 'Готовлю запись');
-    blob.arrayBuffer().then(decode).then(function(w){
-      var id = uid(), now = Date.now();
+    var id = uid(), now = Date.now();
+    // Исходник сохраняется ДО decode: даже неподдержанный кодек можно прослушать
+    // и повторно обработать после перезагрузки. Пока готовим, очередь его не берёт.
+    var source = { id: id, blob: blob, ts: now, tries: MAX_TRIES, needsDecode: true };
+    mem[id] = source;
+    vput(source).then(function(ok){
+      if (ok) delete mem[id];
+      else toast('Запись пока только в памяти. Не закрывайте страницу до расшифровки.');
+      addTask({ id: id, text: '🎤 готовлю запись…', box: 1,
+                created: todayStr(), createdAt: now, raw: '', voice: 1, vstate: 'work' });
+      redraw();
+      return blob.arrayBuffer().then(decode);
+    }).then(function(w){
       var quiet = w.peak < SILENCE, toobig = w.blob.size > MAX_BODY;
       // 1) звук на диск - раньше всего остального
       var rr = { id: id, blob: w.blob, ts: now, tries: 0, secs: w.secs, peak: w.peak };
@@ -2630,9 +2645,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
           // Легло на диск - держать копию в памяти незачем. Не легло - только
           // она и остаётся, поэтому её не выбрасываем.
           if (ok) delete mem[id];
-          // 2) видимая строка - до отправки, а не после успеха
-          addTask({ id: id, text: '🎤 расшифровывается…', box: 1,
-                    created: todayStr(), createdAt: now, raw: '', voice: 1, vstate: 'work' });
+          mark(id, 'work', '🎤 расшифровывается…');
           if (quiet)  mark(id, 'fail', '🎤 микрофон молчал (' + hhmm(now) + ') — в записи тишина', 'громкость ' + w.peak.toFixed(4) + ', ' + w.secs + ' с');
           if (toobig) mark(id, 'fail', '🎤 запись слишком длинная (' + hhmm(now) + ')', w.blob.size + ' Б при пределе ' + MAX_BODY);
           redraw();
@@ -2644,14 +2657,10 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
           pump();
         });
     }).catch(function(e){
-      // Даже перекодировка может упасть. Терять уже нечего, кроме самого факта -
-      // пусть он останется записью, а не всплывашкой на две секунды.
-      var id = uid(), now = Date.now();
-      addTask({ id: id, text: '❓ голосовая не записалась (' + hhmm(now) + ') — ' +
-                      String((e && e.message) || e).slice(0, 70),
-                box: 1, created: todayStr(), createdAt: now, raw: '', voice: 1, vstate: 'dead' });
+      mark(id, 'fail', '❓ звук сохранён, не удалось обработать (' + hhmm(now) + ')',
+           String((e && e.message) || e).slice(0, 200));
       redraw();
-      toast('Не записалось: ' + ((e && e.message) || e));
+      toast('Звук сохранён. Повторите обработку или прослушайте запись.');
     });
   }
 
@@ -2660,9 +2669,9 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     if (sending) return;
     if (pumpTimer){ clearTimeout(pumpTimer); pumpTimer = null; }
     vall().then(function(list){
-      var seen = {};
-      list.forEach(function(r){ seen[r.id] = 1; });
-      Object.keys(mem).forEach(function(k){ if (!seen[k]) list.push(mem[k]); });
+      // После сбоя записи на диск версия в памяти новее старого исходника в IDB.
+      list = list.filter(function(r){ return !mem[r.id]; });
+      Object.keys(mem).forEach(function(k){ list.push(mem[k]); });
       list.sort(function(a, b){ return (a.ts || 0) - (b.ts || 0); });
       if (!list.length){ idle(); return; }
       var now = Date.now(), next = null, soonest = Infinity;
@@ -2681,6 +2690,24 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     });
   }
 
+  function applyVoiceReview(task, res){
+    var p = task.pult || {};
+    // Первое успешное распознавание заменяет только служебную заглушку.
+    // Повтор ответа не переписывает сохранённую исходную формулировку.
+    if (!p.voiceOriginalSet){
+      p.original = res.transcript || task.raw || 'неизвестно';
+      p.voiceOriginalSet = true;
+    }
+    ['direction','project','priority','due','status','assignee','dependency','lastReviewed'].forEach(function(k){
+      if (typeof p[k] !== 'string' || !p[k].trim()) p[k] = 'неизвестно';
+    });
+    if (p.direction === 'неизвестно' && task.zone && window.PultCore) p.direction = PultCore.directionForZone(task.zone, ZD());
+    p.needsReview = true;
+    p.confirmed = false;
+    p.reason = 'Проверьте нейросетевой разбор' + (res.note ? ': ' + res.note : '');
+    task.pult = p;
+  }
+
   function run(r){
     if (sending) return;
     sending = true;
@@ -2689,7 +2716,14 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     if (it && it.vstate !== 'work'){ mark(r.id, 'work', '🎤 расшифровывается…'); redraw(); }
     idle();
 
-    send(r.blob).then(function(res){
+    var ready = r.needsDecode ? r.blob.arrayBuffer().then(decode).then(function(w){
+      if (w.peak < SILENCE) throw new Error('в записи тишина');
+      if (w.blob.size > MAX_BODY) throw new Error('запись слишком длинная');
+      r.blob = w.blob; r.secs = w.secs; r.peak = w.peak; delete r.needsDecode;
+      mem[r.id] = r;
+      return vput(r).then(function(ok){ if (ok) delete mem[r.id]; });
+    }) : Promise.resolve();
+    ready.then(function(){ return send(r.blob); }).then(function(res){
       sending = false;
       vdel(r.id); delete mem[r.id];
       var secs = Math.round((Date.now() - t) / 1000);
@@ -2700,20 +2734,19 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
         it2.text = text;
         it2.zone = res.zone || null;
         it2.day = res.date || null;
-        if (it2.day) it2.box = 0;          // услышали день — дело разобрано
-        // Дата дальше завтрашнего дня — это про планы, такому место в календаре.
-        // «Сегодня в 13:00 массаж» — обычное дело дня, календарь им не засоряем.
-        if (it2.day && window.isFarDate && window.isFarDate(it2.day)) it2.cal = 1;
-        it2.raw = res.transcript || '';
-        it2._u = Date.now();
+        it2.box = 1;                     // нейроразбор требует ручной проверки
+        it2.raw = it2.raw || res.transcript || '';
+        applyVoiceReview(it2, res);
+        ezTouch(it2);
         fixHome(it2);
         delete it2.voice; delete it2.vstate; delete it2.vdetail;
       } else {
         // Строку удалили руками, пока шла расшифровка - результат всё равно не теряем.
-        addTask({ text: text, zone: res.zone || null, created: todayStr(),
-                  createdAt: r.ts || Date.now(), day: res.date || null,
-                  box: res.date ? 0 : 1, raw: res.transcript || '',
-                  cal: (res.date && window.isFarDate && window.isFarDate(res.date)) ? 1 : undefined });
+        var restored = { text: text, zone: res.zone || null, created: todayStr(),
+                         createdAt: r.ts || Date.now(), day: res.date || null,
+                         box: 1, raw: res.transcript || '' };
+        applyVoiceReview(restored, res);
+        addTask(restored);
       }
       redraw();
       var z = zoneName(res.zone);
@@ -2729,8 +2762,9 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
       var wait = BACKOFF[Math.min(tries - 1, BACKOFF.length - 1)];
       // Звук остаётся в базе при любом исходе, кроме успеха.
       var upd = { id: r.id, blob: r.blob, ts: r.ts, tries: tries, secs: r.secs, peak: r.peak,
-                  nextAt: Date.now() + wait, lastErr: why };
-      vput(upd); if (mem[r.id]) mem[r.id] = upd;
+                  nextAt: Date.now() + wait, lastErr: why, needsDecode: !!r.needsDecode };
+      mem[r.id] = upd;
+      vput(upd).then(function(ok){ if (ok && mem[r.id] === upd) delete mem[r.id]; });
       var over = tries >= MAX_TRIES;
       mark(r.id, over ? 'fail' : 'work',
            (over ? '❓ не расшифровалось, больше не пробую — нажми ↻ (' :
@@ -2786,6 +2820,10 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
     list.forEach(function(r){
       // Звук есть, а строки нет - строку удалили руками. Звук больше не нужен.
       if (!item(r.id)){ vdel(r.id); return; }
+      if (r.needsDecode && item(r.id).vstate === 'work'){
+        mark(r.id, 'fail', '❓ обработка звука не завершена — нажмите ↻',
+             'Исходная запись сохранена на этом устройстве');
+      }
       // Через неделю звук уходит в любом случае: нерасшифрованные записи иначе
       // копились бы вечно по 2 МБ на минуту речи. Сама строка остаётся.
       if (Date.now() - (r.ts || 0) > KEEP_MS){
@@ -2820,5 +2858,7 @@ if(document.readyState!=='loading')cloudInit();else window.addEventListener('DOM
   idle();
 })();
 </script>
+<script src="./pult-core.js"></script>
+<script src="./pult-ui.js"></script>
 </body>
 </html>

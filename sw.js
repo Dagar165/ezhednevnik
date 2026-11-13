@@ -13,11 +13,14 @@
    - Иконки, Sortable и Firebase SDK — из кэша мгновенно (они не меняются).
    - Запросы к Firestore/Auth не трогаем: их офлайн-режим Firebase делает сам. */
 
-var CACHE = 'ezhednevnik-v7';
+var CACHE = 'ezhednevnik-v8-pult';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './pult-core.js',
+  './pult-ui.js',
+  './pult.css',
   './vendor/Sortable.min.js',
   './vendor/firebase-app-compat.js',
   './vendor/firebase-auth-compat.js',

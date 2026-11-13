@@ -198,5 +198,19 @@ console.log('\n13. Битые данные не роняют слияние');
   ok('пустая копия не ломает', !!m2 && m2.today.length === 1);
 })();
 
+console.log('\n14. Журнал Пульта сохраняет изменения обоих устройств');
+(function () {
+  var phone = base(T20), pc = base(T13);
+  phone.pultLog = [{ id: 'log-phone', _u: T20, title: 'Срок уточнён', changes: 'Срок: неизвестно → 2026-08-24' }];
+  pc.pultLog = [{ id: 'log-pc', _u: T13, title: 'Ответственный уточнён', changes: 'Ответственный: неизвестно → Анна' }];
+  var merged = ctx.ezMergeStates(phone, pc, NOW);
+  ok('запись телефона сохранена', merged.pultLog.some(function(x){return x.id === 'log-phone';}));
+  ok('запись компьютера сохранена', merged.pultLog.some(function(x){return x.id === 'log-pc';}));
+  var again = ctx.ezMergeStates(merged, pc, NOW);
+  ok('повторная синхронизация не дублирует журнал', again.pultLog.length === 2);
+  var reverse = ctx.ezMergeStates(pc, phone, NOW);
+  ok('порядок устройств не теряет журнал', reverse.pultLog.length === 2);
+})();
+
 console.log('\n' + (fails ? '✗ ПРОВАЛЕНО ' + fails + ' из ' + checks : '✓ Все ' + checks + ' проверок прошли'));
 process.exit(fails ? 1 : 0);
